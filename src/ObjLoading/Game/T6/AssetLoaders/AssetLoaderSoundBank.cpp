@@ -2,17 +2,16 @@
 
 #include "Csv/ParsedCsv.h"
 #include "Game/T6/CommonT6.h"
-#include "Game/T6/ObjConstantsT6.h"
+#include "Game/T6/SoundConstantsT6.h"
 #include "Game/T6/T6.h"
 #include "ObjContainer/SoundBank/SoundBankWriter.h"
 #include "Pool/GlobalAssetPool.h"
-#include "nlohmann/json.hpp"
+#include "Utils/StringUtils.h"
 
-#include <Utils/StringUtils.h>
-#include <climits>
 #include <cstring>
 #include <fstream>
 #include <iostream>
+#include <nlohmann/json.hpp>
 
 using namespace T6;
 namespace fs = std::filesystem;
@@ -24,7 +23,7 @@ namespace
         "devraw/",
     };
 
-    _NODISCARD std::string GetSoundFilePath(SndAlias* sndAlias)
+    _NODISCARD std::string GetSoundFilePath(const SndAlias* sndAlias)
     {
         std::string soundFilePath(sndAlias->assetFileName);
 
@@ -88,7 +87,7 @@ size_t GetValueIndex(const std::string& value, const std::string* lookupTable, s
     return 0;
 }
 
-unsigned int GetAliasSubListCount(unsigned int startRow, const ParsedCsv& csv)
+unsigned int GetAliasSubListCount(const unsigned int startRow, const ParsedCsv& csv)
 {
     auto count = 1u;
 
@@ -123,20 +122,21 @@ bool LoadSoundAlias(MemoryManager* memory, SndAlias* alias, const ParsedCsvRow& 
     if (name.empty())
         return false;
 
-    const auto& aliasFileName = row.GetValue("file", true);
-    if (aliasFileName.empty())
-        return false;
-
     alias->name = memory->Dup(name.data());
     alias->id = Common::SND_HashName(name.data());
-    alias->assetFileName = memory->Dup(aliasFileName.data());
-    alias->assetId = Common::SND_HashName(aliasFileName.data());
 
-    auto secondaryName = row.GetValue("secondary");
+    const auto aliasFileName = row.GetValue("file");
+    if (!aliasFileName.empty())
+    {
+        alias->assetFileName = memory->Dup(aliasFileName.data());
+        alias->assetId = Common::SND_HashName(aliasFileName.data());
+    }
+
+    const auto secondaryName = row.GetValue("secondary");
     if (!secondaryName.empty())
         alias->secondaryname = memory->Dup(secondaryName.data());
 
-    auto subtitle = row.GetValue("subtitle");
+    const auto subtitle = row.GetValue("subtitle");
     if (!subtitle.empty())
         alias->subtitle = memory->Dup(subtitle.data());
 
@@ -180,24 +180,18 @@ bool LoadSoundAlias(MemoryManager* memory, SndAlias* alias, const ParsedCsvRow& 
     alias->flags.pauseable = row.GetValue("pause") == "yes";
     alias->flags.stopOnDeath = row.GetValue("stop_on_death") == "yes";
 
-    alias->duckGroup =
-        static_cast<char>(GetValueIndex(row.GetValue("duck_group"), ObjConstants::SOUND_DUCK_GROUPS.data(), ObjConstants::SOUND_DUCK_GROUPS.size()));
-    alias->flags.volumeGroup = GetValueIndex(row.GetValue("group"), ObjConstants::SOUND_GROUPS.data(), ObjConstants::SOUND_GROUPS.size());
-    alias->flags.fluxType = GetValueIndex(row.GetValue("move_type"), ObjConstants::SOUND_MOVE_TYPES.data(), ObjConstants::SOUND_MOVE_TYPES.size());
-    alias->flags.loadType = GetValueIndex(row.GetValue("type"), ObjConstants::SOUND_LOAD_TYPES.data(), ObjConstants::SOUND_LOAD_TYPES.size());
-    alias->flags.busType = GetValueIndex(row.GetValue("bus"), ObjConstants::SOUND_BUS_IDS.data(), ObjConstants::SOUND_BUS_IDS.size());
-    alias->flags.limitType = GetValueIndex(row.GetValue("limit_type"), ObjConstants::SOUND_LIMIT_TYPES.data(), ObjConstants::SOUND_LIMIT_TYPES.size());
-    alias->flags.volumeFalloffCurve = GetValueIndex(row.GetValue("volume_falloff_curve"), ObjConstants::SOUND_CURVES.data(), ObjConstants::SOUND_CURVES.size());
-    alias->flags.reverbFalloffCurve = GetValueIndex(row.GetValue("reverb_falloff_curve"), ObjConstants::SOUND_CURVES.data(), ObjConstants::SOUND_CURVES.size());
-
-    alias->flags.entityLimitType =
-        GetValueIndex(row.GetValue("entity_limit_type"), ObjConstants::SOUND_LIMIT_TYPES.data(), ObjConstants::SOUND_LIMIT_TYPES.size());
-    alias->flags.volumeMinFalloffCurve =
-        GetValueIndex(row.GetValue("volume_min_falloff_curve"), ObjConstants::SOUND_CURVES.data(), ObjConstants::SOUND_CURVES.size());
-    alias->flags.reverbMinFalloffCurve =
-        GetValueIndex(row.GetValue("reverb_min_falloff_curve"), ObjConstants::SOUND_CURVES.data(), ObjConstants::SOUND_CURVES.size());
-    alias->flags.randomizeType =
-        GetValueIndex(row.GetValue("randomize_type"), ObjConstants::SOUND_RANDOMIZE_TYPES.data(), ObjConstants::SOUND_RANDOMIZE_TYPES.size());
+    alias->duckGroup = static_cast<char>(GetValueIndex(row.GetValue("duck_group"), SOUND_DUCK_GROUPS, std::extent_v<decltype(SOUND_DUCK_GROUPS)>));
+    alias->flags.volumeGroup = GetValueIndex(row.GetValue("group"), SOUND_GROUPS, std::extent_v<decltype(SOUND_GROUPS)>);
+    alias->flags.fluxType = GetValueIndex(row.GetValue("move_type"), SOUND_MOVE_TYPES, std::extent_v<decltype(SOUND_MOVE_TYPES)>);
+    alias->flags.loadType = GetValueIndex(row.GetValue("type"), SOUND_LOAD_TYPES, std::extent_v<decltype(SOUND_LOAD_TYPES)>);
+    alias->flags.busType = GetValueIndex(row.GetValue("bus"), SOUND_BUS_IDS, std::extent_v<decltype(SOUND_BUS_IDS)>);
+    alias->flags.limitType = GetValueIndex(row.GetValue("limit_type"), SOUND_LIMIT_TYPES, std::extent_v<decltype(SOUND_LIMIT_TYPES)>);
+    alias->flags.volumeFalloffCurve = GetValueIndex(row.GetValue("volume_falloff_curve"), SOUND_CURVES, std::extent_v<decltype(SOUND_CURVES)>);
+    alias->flags.reverbFalloffCurve = GetValueIndex(row.GetValue("reverb_falloff_curve"), SOUND_CURVES, std::extent_v<decltype(SOUND_CURVES)>);
+    alias->flags.entityLimitType = GetValueIndex(row.GetValue("entity_limit_type"), SOUND_LIMIT_TYPES, std::extent_v<decltype(SOUND_LIMIT_TYPES)>);
+    alias->flags.volumeMinFalloffCurve = GetValueIndex(row.GetValue("volume_min_falloff_curve"), SOUND_CURVES, std::extent_v<decltype(SOUND_CURVES)>);
+    alias->flags.reverbMinFalloffCurve = GetValueIndex(row.GetValue("reverb_min_falloff_curve"), SOUND_CURVES, std::extent_v<decltype(SOUND_CURVES)>);
+    alias->flags.randomizeType = GetValueIndex(row.GetValue("randomize_type"), SOUND_RANDOMIZE_TYPES, std::extent_v<decltype(SOUND_RANDOMIZE_TYPES)>);
 
     return true;
 }
@@ -208,16 +202,15 @@ bool LoadSoundAliasIndexList(MemoryManager* memory, SndBank* sndBank)
     sndBank->aliasIndex = static_cast<SndIndexEntry*>(memory->Alloc(sizeof(SndIndexEntry) * sndBank->aliasCount));
     memset(sndBank->aliasIndex, 0xFF, sizeof(SndIndexEntry) * sndBank->aliasCount);
 
-    bool* setAliasIndexList = new bool[sndBank->aliasCount];
-    memset(setAliasIndexList, false, sndBank->aliasCount);
+    const auto setAliasIndexList = std::make_unique<bool[]>(sndBank->aliasCount);
 
     for (auto i = 0u; i < sndBank->aliasCount; i++)
     {
-        auto idx = sndBank->alias[i].id % sndBank->aliasCount;
-        if (sndBank->aliasIndex[idx].value == USHRT_MAX)
+        const auto idx = sndBank->alias[i].id % sndBank->aliasCount;
+        if (sndBank->aliasIndex[idx].value == std::numeric_limits<unsigned short>::max())
         {
             sndBank->aliasIndex[idx].value = i;
-            sndBank->aliasIndex[idx].next = USHRT_MAX;
+            sndBank->aliasIndex[idx].next = std::numeric_limits<unsigned short>::max();
             setAliasIndexList[i] = true;
         }
     }
@@ -228,44 +221,42 @@ bool LoadSoundAliasIndexList(MemoryManager* memory, SndBank* sndBank)
             continue;
 
         auto idx = sndBank->alias[i].id % sndBank->aliasCount;
-        while (sndBank->aliasIndex[idx].next != USHRT_MAX)
+        while (sndBank->aliasIndex[idx].next != std::numeric_limits<unsigned short>::max())
         {
             idx = sndBank->aliasIndex[idx].next;
         }
 
         auto offset = 1u;
-        auto freeIdx = USHRT_MAX;
+        auto freeIdx = std::numeric_limits<unsigned short>::max();
         while (true)
         {
             freeIdx = (idx + offset) % sndBank->aliasCount;
-            if (sndBank->aliasIndex[freeIdx].value == USHRT_MAX)
+            if (sndBank->aliasIndex[freeIdx].value == std::numeric_limits<unsigned short>::max())
                 break;
 
             freeIdx = (idx + sndBank->aliasCount - offset) % sndBank->aliasCount;
-            if (sndBank->aliasIndex[freeIdx].value == USHRT_MAX)
+            if (sndBank->aliasIndex[freeIdx].value == std::numeric_limits<unsigned short>::max())
                 break;
 
             offset++;
-            freeIdx = USHRT_MAX;
+            freeIdx = std::numeric_limits<unsigned short>::max();
 
             if (offset >= sndBank->aliasCount)
                 break;
         }
 
-        if (freeIdx == USHRT_MAX)
+        if (freeIdx == std::numeric_limits<unsigned short>::max())
         {
             std::cerr << "Unable to allocate sound bank alias index list" << std::endl;
-            delete[] setAliasIndexList;
             return false;
         }
 
         sndBank->aliasIndex[idx].next = freeIdx;
         sndBank->aliasIndex[freeIdx].value = i;
-        sndBank->aliasIndex[freeIdx].next = USHRT_MAX;
+        sndBank->aliasIndex[freeIdx].next = std::numeric_limits<unsigned short>::max();
         setAliasIndexList[i] = true;
     }
 
-    delete[] setAliasIndexList;
     return true;
 }
 
@@ -289,7 +280,7 @@ bool LoadSoundAliasList(
         {
             // count how many of the next rows should be in the sound alias sub-list. Aliases are part of the same sub list if they have the same name for a
             // different file
-            auto subListCount = GetAliasSubListCount(row, aliasCsv);
+            const auto subListCount = GetAliasSubListCount(row, aliasCsv);
             if (subListCount < 1)
                 return false;
 
@@ -306,7 +297,7 @@ bool LoadSoundAliasList(
                     return false;
 
                 // if this asset is loaded instead of stream, increment the loaded count for later
-                if (sndBank->alias[listIndex].head[i].flags.loadType == T6::SA_LOADED)
+                if (sndBank->alias[listIndex].head[i].flags.loadType == SA_LOADED)
                     (*loadedEntryCount)++;
                 else
                     (*streamedEntryCount)++;
@@ -356,7 +347,7 @@ bool LoadSoundRadverbs(MemoryManager* memory, SndBank* sndBank, const SearchPath
         {
             auto row = radverbCsv[i];
 
-            auto& name = row.GetValue("name", true);
+            auto name = row.GetValue("name", true);
             if (name.empty())
                 return false;
 
@@ -436,8 +427,7 @@ bool LoadSoundDuckList(ISearchPath* searchPath, MemoryManager* memory, SndBank* 
 
             for (auto& valueJson : duckJson["values"])
             {
-                auto index =
-                    GetValueIndex(valueJson["duckGroup"].get<std::string>(), ObjConstants::SOUND_DUCK_GROUPS.data(), ObjConstants::SOUND_DUCK_GROUPS.size());
+                auto index = GetValueIndex(valueJson["duckGroup"].get<std::string>(), SOUND_DUCK_GROUPS, std::extent_v<decltype(SOUND_DUCK_GROUPS)>);
 
                 duck->attenuation[index] = valueJson["attenuation"].get<float>();
                 duck->filter[index] = valueJson["filter"].get<float>();
@@ -467,7 +457,7 @@ bool AssetLoaderSoundBank::LoadFromRaw(
     memset(sndBank, 0, sizeof(SndBank));
 
     sndBank->name = memory->Dup(assetName.c_str());
-    auto sndBankLocalization = utils::StringSplit(assetName, '.');
+    const auto sndBankLocalization = utils::StringSplit(assetName, '.');
 
     // load the soundbank aliases
     unsigned int loadedEntryCount = 0u, streamedEntryCount = 0u;
@@ -535,29 +525,33 @@ bool AssetLoaderSoundBank::LoadFromRaw(
     // add aliases to the correct sound bank writer
     for (auto i = 0u; i < sndBank->aliasCount; i++)
     {
-        auto* aliasList = &sndBank->alias[i];
+        const auto* aliasList = &sndBank->alias[i];
         for (auto j = 0; j < aliasList->count; j++)
         {
-            auto* alias = &aliasList->head[j];
+            const auto* alias = &aliasList->head[j];
 
-            if (sabsWriter && alias->flags.loadType == T6::SA_STREAMED)
-                sabsWriter->AddSound(GetSoundFilePath(alias), alias->assetId, alias->flags.looping, true);
-            else if (sablWriter)
-                sablWriter->AddSound(GetSoundFilePath(alias), alias->assetId, alias->flags.looping);
+            if (alias->assetFileName && alias->assetId)
+            {
+                if (sabsWriter && alias->flags.loadType == SA_STREAMED)
+                    sabsWriter->AddSound(GetSoundFilePath(alias), alias->assetId, alias->flags.looping, true);
+                else if (sablWriter)
+                    sablWriter->AddSound(GetSoundFilePath(alias), alias->assetId, alias->flags.looping);
+            }
         }
     }
 
     // write the output linked sound bank
     if (sablWriter)
     {
-        auto size = static_cast<size_t>(sablWriter->Write());
+        size_t dataSize = 0u;
+        const auto result = sablWriter->Write(dataSize);
         sablStream->close();
 
-        if (size != UINT32_MAX)
+        if (result)
         {
-            sndBank->loadedAssets.dataSize = size;
-            sndBank->loadedAssets.data = static_cast<SndChar2048*>(memory->Alloc(size));
-            memset(sndBank->loadedAssets.data, 0, size);
+            sndBank->loadedAssets.dataSize = dataSize;
+            sndBank->loadedAssets.data = static_cast<SndChar2048*>(memory->Alloc(dataSize));
+            memset(sndBank->loadedAssets.data, 0, dataSize);
         }
         else
         {
@@ -569,10 +563,11 @@ bool AssetLoaderSoundBank::LoadFromRaw(
     // write the output streamed sound bank
     if (sabsWriter)
     {
-        auto size = static_cast<size_t>(sabsWriter->Write());
+        size_t dataSize = 0u;
+        const auto result = sabsWriter->Write(dataSize);
         sabsStream->close();
 
-        if (size == UINT32_MAX)
+        if (!result)
         {
             std::cerr << "Streamed Sound Bank for " << assetName << " failed to generate. Please check your build files." << std::endl;
             return false;
