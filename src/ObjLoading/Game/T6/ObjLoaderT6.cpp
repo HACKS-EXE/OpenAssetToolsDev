@@ -3,6 +3,7 @@
 #include "AssetLoaders/AssetLoaderFontIcon.h"
 #include "AssetLoaders/AssetLoaderGfxImage.h"
 #include "AssetLoaders/AssetLoaderLocalizeEntry.h"
+#include "AssetLoaders/AssetLoaderMaterial.h"
 #include "AssetLoaders/AssetLoaderPhysConstraints.h"
 #include "AssetLoaders/AssetLoaderPhysPreset.h"
 #include "AssetLoaders/AssetLoaderQdb.h"
@@ -16,6 +17,7 @@
 #include "AssetLoaders/AssetLoaderWeapon.h"
 #include "AssetLoaders/AssetLoaderWeaponAttachment.h"
 #include "AssetLoaders/AssetLoaderWeaponAttachmentUnique.h"
+#include "AssetLoaders/AssetLoaderWeaponCamo.h"
 #include "AssetLoaders/AssetLoaderZBarrier.h"
 #include "AssetLoading/AssetLoadingManager.h"
 #include "Game/T6/CommonT6.h"
@@ -49,7 +51,8 @@ namespace T6
         REGISTER_ASSET_LOADER(BASIC_LOADER(ASSET_TYPE_DESTRUCTIBLEDEF, DestructibleDef))
         REGISTER_ASSET_LOADER(BASIC_LOADER(ASSET_TYPE_XANIMPARTS, XAnimParts))
         REGISTER_ASSET_LOADER(BASIC_LOADER(ASSET_TYPE_XMODEL, XModel))
-        REGISTER_ASSET_LOADER(BASIC_LOADER(ASSET_TYPE_MATERIAL, Material))
+        // REGISTER_ASSET_LOADER(BASIC_LOADER(ASSET_TYPE_MATERIAL, Material))
+        REGISTER_ASSET_LOADER(AssetLoaderMaterial)
         REGISTER_ASSET_LOADER(BASIC_LOADER(ASSET_TYPE_TECHNIQUE_SET, MaterialTechniqueSet))
         REGISTER_ASSET_LOADER(AssetLoaderGfxImage)
         REGISTER_ASSET_LOADER(AssetLoaderSoundBank)
@@ -70,7 +73,7 @@ namespace T6
         REGISTER_ASSET_LOADER(AssetLoaderWeapon)
         REGISTER_ASSET_LOADER(AssetLoaderWeaponAttachment)
         REGISTER_ASSET_LOADER(AssetLoaderWeaponAttachmentUnique)
-        REGISTER_ASSET_LOADER(BASIC_LOADER(ASSET_TYPE_WEAPON_CAMO, WeaponCamo))
+        REGISTER_ASSET_LOADER(AssetLoaderWeaponCamo)
         REGISTER_ASSET_LOADER(BASIC_LOADER(ASSET_TYPE_SNDDRIVER_GLOBALS, SndDriverGlobals))
         REGISTER_ASSET_LOADER(BASIC_LOADER(ASSET_TYPE_FX, FxEffectDef))
         REGISTER_ASSET_LOADER(BASIC_LOADER(ASSET_TYPE_IMPACT_FX, FxImpactTable))
@@ -115,13 +118,13 @@ namespace T6
     SoundBank* ObjLoader::LoadSoundBankForZone(ISearchPath* searchPath, const std::string& soundBankFileName, Zone* zone)
     {
         if (ObjLoading::Configuration.Verbose)
-            std::cout << "Trying to load sound bank '" << soundBankFileName << "' for zone '" << zone->m_name << "'" << std::endl;
+            std::cout << "Trying to load sound bank '" << soundBankFileName << "' for zone '" << zone->m_name << "'\n";
 
         auto* existingSoundBank = SoundBank::Repository.GetContainerByName(soundBankFileName);
         if (existingSoundBank != nullptr)
         {
             if (ObjLoading::Configuration.Verbose)
-                std::cout << "Referencing loaded sound bank '" << soundBankFileName << "'." << std::endl;
+                std::cout << "Referencing loaded sound bank '" << soundBankFileName << "'.\n";
 
             SoundBank::Repository.AddContainerReference(existingSoundBank, zone);
             return existingSoundBank;
@@ -135,19 +138,19 @@ namespace T6
 
             if (!sndBank->Initialize())
             {
-                std::cout << "Failed to load sound bank '" << soundBankFileName << "'" << std::endl;
+                std::cout << "Failed to load sound bank '" << soundBankFileName << "'\n";
                 return nullptr;
             }
 
             SoundBank::Repository.AddContainer(std::move(sndBank), zone);
 
             if (ObjLoading::Configuration.Verbose)
-                std::cout << "Found and loaded sound bank '" << soundBankFileName << "'" << std::endl;
+                std::cout << "Found and loaded sound bank '" << soundBankFileName << "'\n";
 
             return sndBankPtr;
         }
 
-        std::cout << "Failed to load sound bank '" << soundBankFileName << "'" << std::endl;
+        std::cout << "Failed to load sound bank '" << soundBankFileName << "'\n";
         return nullptr;
     }
 
@@ -166,7 +169,7 @@ namespace T6
             {
                 if (!VerifySoundBankChecksum(soundBank, *sndBankLinkedInfo))
                 {
-                    std::cout << "Checksum of sound bank does not match link time checksum for '" << soundBankFileName << "'" << std::endl;
+                    std::cout << "Checksum of sound bank does not match link time checksum for '" << soundBankFileName << "'\n";
                 }
                 loadedBanksForZone.emplace(soundBankFileName);
 

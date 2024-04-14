@@ -8,6 +8,7 @@
 #include "Game/T6/T6.h"
 #include "InfoString/InfoString.h"
 #include "Utils/ClassUtils.h"
+#include "Utils/StringUtils.h"
 
 #include <cassert>
 #include <cstring>
@@ -68,7 +69,7 @@ namespace T6
                 return true;
             }
 
-            assert(std::extent<decltype(bounceSoundSuffixes)>::value == SURF_TYPE_NUM);
+            assert(std::extent_v<decltype(bounceSoundSuffixes)> == SURF_TYPE_NUM);
             *bounceSound = static_cast<const char**>(m_memory->Alloc(sizeof(const char*) * SURF_TYPE_NUM));
             for (auto i = 0u; i < SURF_TYPE_NUM; i++)
             {
@@ -262,7 +263,11 @@ namespace T6
             if (ConvertString(value, field.iOffset))
             {
                 if (!value.empty())
-                    m_indirect_asset_references.emplace(m_loading_manager->LoadIndirectAssetReference(ASSET_TYPE_XANIMPARTS, value));
+                {
+                    auto lowerValue = value;
+                    utils::MakeStringLowerCase(lowerValue);
+                    m_indirect_asset_references.emplace(m_loading_manager->LoadIndirectAssetReference(ASSET_TYPE_XANIMPARTS, lowerValue));
+                }
                 return true;
             }
 
