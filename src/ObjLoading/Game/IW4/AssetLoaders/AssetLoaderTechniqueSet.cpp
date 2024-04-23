@@ -72,7 +72,7 @@ namespace IW4
             if (existingEntry != m_allocated_literals.end())
                 return existingEntry->second;
 
-            auto* newLiteral = static_cast<float(*)[4]>(memory->Alloc(sizeof(float) * 4u));
+            auto* newLiteral = memory->Alloc<float[4]>();
             (*newLiteral)[0] = source.m_value[0];
             (*newLiteral)[1] = source.m_value[1];
             (*newLiteral)[2] = source.m_value[2];
@@ -391,7 +391,7 @@ namespace IW4
                 ss << materialStreamSourceAbbreviation[stream.source] << materialStreamDestinationAbbreviation[stream.dest];
             }
 
-            pass.m_vertex_decl_asset = reinterpret_cast<XAssetInfo<MaterialVertexDeclaration>*>(m_manager->LoadDependency(ASSET_TYPE_VERTEXDECL, ss.str()));
+            pass.m_vertex_decl_asset = m_manager->LoadDependency<AssetVertexDecl>(ss.str());
         }
 
         bool AcceptEndPass(std::string& errorMessage) override
@@ -461,7 +461,7 @@ namespace IW4
 
         bool AcceptVertexShader(const std::string& vertexShaderName, std::string& errorMessage) override
         {
-            auto* vertexShaderDependency = m_manager->LoadDependency(ASSET_TYPE_VERTEXSHADER, vertexShaderName);
+            auto* vertexShaderDependency = m_manager->LoadDependency<AssetVertexShader>(vertexShaderName);
             if (vertexShaderDependency == nullptr)
             {
                 std::ostringstream ss;
@@ -472,7 +472,7 @@ namespace IW4
 
             assert(!m_passes.empty());
             auto& pass = m_passes.at(m_passes.size() - 1);
-            pass.m_vertex_shader = reinterpret_cast<XAssetInfo<MaterialVertexShader>*>(vertexShaderDependency);
+            pass.m_vertex_shader = vertexShaderDependency;
 
             if (pass.m_vertex_shader->Asset()->name && pass.m_vertex_shader->Asset()->name[0] == ',')
             {
@@ -501,7 +501,7 @@ namespace IW4
 
         bool AcceptPixelShader(const std::string& pixelShaderName, std::string& errorMessage) override
         {
-            auto* pixelShaderDependency = m_manager->LoadDependency(ASSET_TYPE_PIXELSHADER, pixelShaderName);
+            auto* pixelShaderDependency = m_manager->LoadDependency<AssetPixelShader>(pixelShaderName);
             if (pixelShaderDependency == nullptr)
             {
                 std::ostringstream ss;
@@ -512,7 +512,7 @@ namespace IW4
 
             assert(!m_passes.empty());
             auto& pass = m_passes.at(m_passes.size() - 1);
-            pass.m_pixel_shader = reinterpret_cast<XAssetInfo<MaterialPixelShader>*>(pixelShaderDependency);
+            pass.m_pixel_shader = pixelShaderDependency;
 
             if (pass.m_pixel_shader->Asset()->name && pass.m_pixel_shader->Asset()->name[0] == ',')
             {
@@ -1159,8 +1159,7 @@ namespace IW4
             out.pixelShader = in.m_pixel_shader->Asset();
             out.vertexDecl = in.m_vertex_decl_asset->Asset();
 
-            const auto argDataSize = sizeof(MaterialShaderArgument) * in.m_arguments.size();
-            out.args = static_cast<MaterialShaderArgument*>(m_memory->Alloc(argDataSize));
+            out.args = m_memory->Alloc<MaterialShaderArgument>(in.m_arguments.size());
 
             size_t perObjArgCount = 0u;
             size_t perPrimArgCount = 0u;
@@ -1221,8 +1220,7 @@ namespace IW4
         {
             assert(!passes.empty());
             const auto techniqueSize = sizeof(MaterialTechnique) + (passes.size() - 1u) * sizeof(MaterialPass);
-            auto* technique = static_cast<MaterialTechnique*>(m_memory->Alloc(techniqueSize));
-            memset(technique, 0, techniqueSize);
+            auto* technique = static_cast<MaterialTechnique*>(m_memory->AllocRaw(techniqueSize));
             technique->name = m_memory->Dup(techniqueName.c_str());
             technique->passCount = static_cast<uint16_t>(passes.size());
 
@@ -1331,7 +1329,7 @@ bool AssetLoaderTechniqueSet::CreateTechsetFromDefinition(
         }
     }
 
-    manager->AddAsset(ASSET_TYPE_TECHNIQUE_SET, assetName, techset, std::vector(dependencies.begin(), dependencies.end()), std::vector<scr_string_t>());
+    manager->AddAsset<AssetTechniqueSet>(assetName, techset, std::vector(dependencies.begin(), dependencies.end()));
 
     return true;
 }

@@ -35,7 +35,7 @@ bool AssetLoaderRawFile::LoadGsc(
     uncompressedBuffer[static_cast<size_t>(file.m_length)] = '\0';
 
     const auto compressionBufferSize = static_cast<size_t>(file.m_length + 1 + sizeof(uint32_t) + sizeof(uint32_t) + COMPRESSED_BUFFER_SIZE_PADDING);
-    auto* compressedBuffer = static_cast<char*>(memory->Alloc(compressionBufferSize));
+    auto* compressedBuffer = memory->Alloc<char>(compressionBufferSize);
 
     z_stream_s zs{};
 
@@ -58,7 +58,7 @@ bool AssetLoaderRawFile::LoadGsc(
 
     if (ret != Z_STREAM_END)
     {
-        std::cout << "Deflate failed for loading gsc file \"" << assetName << "\"\n";
+        std::cerr << "Deflate failed for loading gsc file \"" << assetName << "\"\n";
         deflateEnd(&zs);
         return false;
     }
@@ -73,7 +73,9 @@ bool AssetLoaderRawFile::LoadGsc(
     rawFile->len = static_cast<int>(compressedSize + sizeof(uint32_t) + sizeof(uint32_t));
     rawFile->buffer = static_cast<const char*>(compressedBuffer);
 
-    manager->AddAsset(ASSET_TYPE_RAWFILE, assetName, rawFile);
+    deflateEnd(&zs);
+
+    manager->AddAsset<AssetRawFile>(assetName, rawFile);
 
     return true;
 }
@@ -85,14 +87,14 @@ bool AssetLoaderRawFile::LoadDefault(
     rawFile->name = memory->Dup(assetName.c_str());
     rawFile->len = static_cast<int>(file.m_length);
 
-    auto* fileBuffer = static_cast<char*>(memory->Alloc(static_cast<size_t>(file.m_length + 1)));
+    auto* fileBuffer = memory->Alloc<char>(static_cast<size_t>(file.m_length + 1));
     file.m_stream->read(fileBuffer, file.m_length);
     if (file.m_stream->gcount() != file.m_length)
         return false;
     fileBuffer[rawFile->len] = '\0';
 
     rawFile->buffer = fileBuffer;
-    manager->AddAsset(ASSET_TYPE_RAWFILE, assetName, rawFile);
+    manager->AddAsset<AssetRawFile>(assetName, rawFile);
 
     return true;
 }

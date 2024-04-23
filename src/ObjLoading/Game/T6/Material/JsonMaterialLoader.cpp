@@ -99,7 +99,7 @@ namespace
             textureDef.semantic = jTexture.semantic;
             textureDef.isMatureContent = jTexture.isMatureContent;
 
-            auto* image = static_cast<XAssetInfo<GfxImage>*>(m_manager.LoadDependency(ASSET_TYPE_IMAGE, jTexture.image));
+            auto* image = m_manager.LoadDependency<AssetImage>(jTexture.image);
             if (!image)
             {
                 PrintError(material, std::format("Could not find textureDef image: {}", jTexture.image));
@@ -275,7 +275,7 @@ namespace
             material.cameraRegion = jMaterial.cameraRegion;
             material.probeMipBits = jMaterial.probeMipBits;
 
-            auto* techniqueSet = static_cast<XAssetInfo<MaterialTechniqueSet>*>(m_manager.LoadDependency(ASSET_TYPE_TECHNIQUE_SET, jMaterial.techniqueSet));
+            auto* techniqueSet = m_manager.LoadDependency<AssetTechniqueSet>(jMaterial.techniqueSet);
             if (!techniqueSet)
             {
                 PrintError(material, "Could not find technique set");
@@ -287,8 +287,7 @@ namespace
             if (!jMaterial.textures.empty())
             {
                 material.textureCount = static_cast<unsigned char>(jMaterial.textures.size());
-                material.textureTable = static_cast<MaterialTextureDef*>(m_memory.Alloc(sizeof(MaterialTextureDef) * material.textureCount));
-                memset(material.textureTable, 0, sizeof(MaterialTextureDef) * material.textureCount);
+                material.textureTable = m_memory.Alloc<MaterialTextureDef>(material.textureCount);
 
                 for (auto i = 0u; i < material.textureCount; i++)
                 {
@@ -305,8 +304,7 @@ namespace
             if (!jMaterial.constants.empty())
             {
                 material.constantCount = static_cast<unsigned char>(jMaterial.constants.size());
-                material.constantTable = static_cast<MaterialConstantDef*>(m_memory.Alloc(sizeof(MaterialConstantDef) * material.constantCount));
-                memset(material.constantTable, 0, sizeof(MaterialConstantDef) * material.constantCount);
+                material.constantTable = m_memory.Alloc<MaterialConstantDef>(material.constantCount);
 
                 for (auto i = 0u; i < material.constantCount; i++)
                 {
@@ -323,8 +321,7 @@ namespace
             if (!jMaterial.stateBits.empty())
             {
                 material.stateBitsCount = static_cast<unsigned char>(jMaterial.stateBits.size());
-                material.stateBitsTable = static_cast<GfxStateBitsTable*>(m_memory.Alloc(sizeof(GfxStateBitsTable) * material.stateBitsCount));
-                memset(material.stateBitsTable, 0, sizeof(GfxStateBitsTable) * material.stateBitsCount);
+                material.stateBitsTable = m_memory.Alloc<GfxStateBitsTable>(material.stateBitsCount);
 
                 for (auto i = 0u; i < material.stateBitsCount; i++)
                 {
@@ -340,7 +337,7 @@ namespace
 
             if (jMaterial.thermalMaterial)
             {
-                auto* thermalMaterial = static_cast<XAssetInfo<Material>*>(m_manager.LoadDependency(ASSET_TYPE_MATERIAL, jMaterial.thermalMaterial.value()));
+                auto* thermalMaterial = m_manager.LoadDependency<AssetMaterial>(jMaterial.thermalMaterial.value());
                 if (!thermalMaterial)
                 {
                     PrintError(material, "Could not find thermal material");

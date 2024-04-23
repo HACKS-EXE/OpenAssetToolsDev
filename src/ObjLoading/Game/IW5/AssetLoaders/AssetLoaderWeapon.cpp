@@ -1,10 +1,9 @@
 #include "AssetLoaderWeapon.h"
 
-#include "Game/IW4/IW4.h"
-#include "Game/IW4/InfoString/EnumStrings.h"
-#include "Game/IW4/InfoString/InfoStringToStructConverter.h"
-#include "Game/IW4/InfoString/WeaponFields.h"
-#include "Game/IW4/ObjConstantsIW4.h"
+#include "Game/IW5/IW5.h"
+#include "Game/IW5/InfoString/InfoStringToStructConverter.h"
+#include "Game/IW5/InfoString/WeaponFields.h"
+#include "Game/IW5/ObjConstantsIW5.h"
 #include "InfoString/InfoString.h"
 #include "ObjLoading.h"
 #include "Pool/GlobalAssetPool.h"
@@ -14,7 +13,7 @@
 #include <format>
 #include <iostream>
 
-using namespace IW4;
+using namespace IW5;
 
 namespace
 {
@@ -60,29 +59,28 @@ namespace
             return true;
         }
 
-        _NODISCARD bool ConvertBounceSounds(const cspField_t& field, const std::string& value) const
+        _NODISCARD bool ConvertPerSurfaceTypeSound(const cspField_t& field, const std::string& value) const
         {
-            auto** bounceSound = reinterpret_cast<SndAliasCustom**>(reinterpret_cast<uintptr_t>(m_structure) + field.iOffset);
+            auto** perSurfaceTypeSound = reinterpret_cast<SndAliasCustom**>(reinterpret_cast<uintptr_t>(m_structure) + field.iOffset);
             if (value.empty())
             {
-                *bounceSound = nullptr;
+                *perSurfaceTypeSound = nullptr;
                 return true;
             }
 
-            assert(std::extent_v<decltype(bounceSoundSuffixes)> == SURF_TYPE_NUM);
-            *bounceSound = m_memory->Alloc<SndAliasCustom>(SURF_TYPE_NUM);
-            for (auto i = 0u; i < SURF_TYPE_NUM; i++)
+            *perSurfaceTypeSound = m_memory->Alloc<SndAliasCustom>(SURF_TYPE_COUNT);
+            for (auto i = 0u; i < SURF_TYPE_COUNT; i++)
             {
-                const auto currentBounceSound = value + bounceSoundSuffixes[i];
+                const auto currentPerSurfaceTypeSound = value + surfaceTypeSoundSuffixes[i];
 
-                (*bounceSound)[i].name = m_memory->Alloc<snd_alias_list_name>();
-                (*bounceSound)[i].name->soundName = m_memory->Dup(currentBounceSound.c_str());
+                (*perSurfaceTypeSound)[i].name = m_memory->Alloc<snd_alias_list_name>();
+                (*perSurfaceTypeSound)[i].name->soundName = m_memory->Dup(currentPerSurfaceTypeSound.c_str());
             }
 
             return true;
         }
 
-        _NODISCARD bool ConvertNotetrackMap(const cspField_t& field, const std::string& value, const char* mapName, const size_t keyAndValueCount)
+        _NODISCARD bool ConvertNoteTrackMap(const cspField_t& field, const std::string& value, const char* mapName, const size_t keyAndValueCount)
         {
             std::vector<std::array<std::string, 2>> pairs;
             if (!ParseAsArray(value, pairs))
@@ -145,6 +143,413 @@ namespace
             return false;
         }
 
+        bool ConvertAttachments(const std::string& value)
+        {
+            std::vector<std::string> valueArray;
+            if (!ParseAsArray(value, valueArray))
+            {
+                std::cerr << "Failed to parse attachments as array\n";
+                return false;
+            }
+
+            auto currentScope = 0u;
+            auto currentUnderBarrel = 0u;
+            auto currentOther = 0u;
+            for (const auto& attachmentName : valueArray)
+            {
+                auto* attachmentInfo = m_loading_manager->LoadDependency<AssetAttachment>(attachmentName);
+                if (!attachmentInfo)
+                    return false;
+                m_dependencies.emplace(attachmentInfo);
+                auto* attachment = attachmentInfo->Asset();
+
+                if (attachment->type == ATTACHMENT_SCOPE)
+                {
+                    if (currentScope >= std::extent_v<decltype(WeaponFullDef::scopes)>)
+                    {
+                        std::cerr << "Cannot have more than " << std::extent_v<decltype(WeaponFullDef::scopes)> << " scopes\n";
+                        return false;
+                    }
+
+                    m_weapon->scopes[currentScope++] = attachment;
+                }
+                else if (attachment->type == ATTACHMENT_UNDERBARREL)
+                {
+                    if (currentUnderBarrel >= std::extent_v<decltype(WeaponFullDef::underBarrels)>)
+                    {
+                        std::cerr << "Cannot have more than " << std::extent_v<decltype(WeaponFullDef::underBarrels)> << " under barrels\n";
+                        return false;
+                    }
+
+                    m_weapon->underBarrels[currentUnderBarrel++] = attachment;
+                }
+                else if (attachment->type == ATTACHMENT_OTHER)
+                {
+                    if (currentOther >= std::extent_v<decltype(WeaponFullDef::others)>)
+                    {
+                        std::cerr << "Cannot have more than " << std::extent_v<decltype(WeaponFullDef::others)> << " other attachments\n";
+                        return false;
+                    }
+
+                    m_weapon->others[currentOther++] = attachment;
+                }
+            }
+
+            return true;
+        }
+
+        bool ConvertAnimOverrides(const std::string& value)
+        {
+            std::vector<std::array<std::string, 7>> valueArray;
+            if (!ParseAsArray(value, valueArray))
+            {
+                std::cerr << "Failed to parse anim overrides as array\n";
+                return false;
+            }
+
+            auto* animOverrides = m_memory->Alloc<AnimOverrideEntry>(valueArray.size());
+
+            auto i = 0u;
+            for (const auto& overrideValues : valueArray)
+            {
+                auto& animOverride = animOverrides[i++];
+
+                if (!ParseSingleWeaponAttachment(overrideValues[0], animOverride.attachment1))
+                    return false;
+
+                if (!ParseSingleWeaponAttachment(overrideValues[1], animOverride.attachment2))
+                    return false;
+
+                if (!ParseAnimFile(overrideValues[2], animOverride.animTreeType))
+                    return false;
+
+                ParseAnim(overrideValues[3], animOverride.overrideAnim);
+                ParseAnim(overrideValues[4], animOverride.altmodeAnim);
+
+                if (!ParseInt(overrideValues[5], animOverride.animTime))
+                    return false;
+
+                if (!ParseInt(overrideValues[6], animOverride.altTime))
+                    return false;
+            }
+
+            m_weapon->weapCompleteDef.animOverrides = animOverrides;
+            m_weapon->weapCompleteDef.numAnimOverrides = valueArray.size();
+
+            return true;
+        }
+
+        bool ConvertSoundOverrides(const std::string& value)
+        {
+            std::vector<std::array<std::string, 5>> valueArray;
+            if (!ParseAsArray(value, valueArray))
+            {
+                std::cerr << "Failed to parse sound overrides as array\n";
+                return false;
+            }
+
+            auto* soundOverrides = m_memory->Alloc<SoundOverrideEntry>(valueArray.size());
+
+            auto i = 0u;
+            for (const auto& overrideValues : valueArray)
+            {
+                auto& soundOverride = soundOverrides[i++];
+
+                if (!ParseSingleWeaponAttachment(overrideValues[0], soundOverride.attachment1))
+                    return false;
+
+                if (!ParseSingleWeaponAttachment(overrideValues[1], soundOverride.attachment2))
+                    return false;
+
+                if (!ParseSoundType(overrideValues[2], soundOverride.soundType))
+                    return false;
+
+                ParseSoundAlias(overrideValues[3], soundOverride.overrideSound);
+                ParseSoundAlias(overrideValues[4], soundOverride.altmodeSound);
+            }
+
+            m_weapon->weapCompleteDef.soundOverrides = soundOverrides;
+            m_weapon->weapCompleteDef.numSoundOverrides = valueArray.size();
+
+            return true;
+        }
+
+        bool ConvertFxOverrides(const std::string& value)
+        {
+            std::vector<std::array<std::string, 5>> valueArray;
+            if (!ParseAsArray(value, valueArray))
+            {
+                std::cerr << "Failed to parse attachments as array\n";
+                return false;
+            }
+
+            auto* fxOverrides = m_memory->Alloc<FxOverrideEntry>(valueArray.size());
+
+            auto i = 0u;
+            for (const auto& overrideValues : valueArray)
+            {
+                auto& fxOverride = fxOverrides[i++];
+
+                if (!ParseSingleWeaponAttachment(overrideValues[0], fxOverride.attachment1))
+                    return false;
+
+                if (!ParseSingleWeaponAttachment(overrideValues[1], fxOverride.attachment2))
+                    return false;
+
+                if (!ParseFxType(overrideValues[2], fxOverride.fxType))
+                    return false;
+
+                if (!ParseFxEffectDef(overrideValues[3], fxOverride.overrideFx))
+                    return false;
+
+                if (!ParseFxEffectDef(overrideValues[4], fxOverride.altmodeFx))
+                    return false;
+            }
+
+            m_weapon->weapCompleteDef.fxOverrides = fxOverrides;
+            m_weapon->weapCompleteDef.numFxOverrides = valueArray.size();
+
+            return true;
+        }
+
+        bool ConvertReloadOverrides(const std::string& value)
+        {
+            std::vector<std::array<std::string, 3>> valueArray;
+            if (!ParseAsArray(value, valueArray))
+            {
+                std::cerr << "Failed to parse reload overrides as array\n";
+                return false;
+            }
+
+            auto* reloadOverrides = m_memory->Alloc<ReloadStateTimerEntry>(valueArray.size());
+
+            auto i = 0u;
+            for (const auto& overrideValues : valueArray)
+            {
+                auto& reloadOverride = reloadOverrides[i++];
+
+                if (!ParseSingleWeaponAttachment(overrideValues[0], reloadOverride.attachment))
+                    return false;
+
+                reloadOverride.unused = 0u;
+
+                if (!ParseInt(overrideValues[1], reloadOverride.reloadAddTime))
+                    return false;
+
+                if (!ParseInt(overrideValues[2], reloadOverride.reloadStartAddTime))
+                    return false;
+            }
+
+            m_weapon->weapCompleteDef.reloadOverrides = reloadOverrides;
+            m_weapon->weapCompleteDef.numReloadStateTimerOverrides = valueArray.size();
+
+            return true;
+        }
+
+        bool ConvertNoteTrackOverrides(const std::string& value)
+        {
+            std::vector<std::array<std::string, 3>> valueArray;
+            if (!ParseAsArray(value, valueArray))
+            {
+                std::cerr << "Failed to parse note track overrides as array\n";
+                return false;
+            }
+
+            std::vector<NoteTrackToSoundEntry> overrideVector;
+            NoteTrackToSoundEntry currentOverride;
+            auto currentOverrideKeyOffset = 0u;
+            currentOverride.unused = 0u;
+            std::string lastAttachment;
+
+            auto i = 0u;
+            for (const auto& overrideValues : valueArray)
+            {
+                if (i == 0u || lastAttachment != overrideValues[0])
+                {
+                    if (currentOverrideKeyOffset > 0u)
+                        overrideVector.emplace_back(currentOverride);
+
+                    if (!ParseSingleWeaponAttachment(overrideValues[0], currentOverride.attachment))
+                        return false;
+
+                    currentOverride.notetrackSoundMapKeys = m_memory->Alloc<ScriptString>(24u);
+                    currentOverride.notetrackSoundMapValues = m_memory->Alloc<ScriptString>(24u);
+                    lastAttachment = overrideValues[0];
+                    currentOverrideKeyOffset = 0u;
+                }
+
+                if (currentOverrideKeyOffset >= 24u)
+                {
+                    std::cerr << "Cannot have more than " << 24u << " note track overrides per attachment\n";
+                    return false;
+                }
+
+                ParseScriptString(overrideValues[1], currentOverride.notetrackSoundMapKeys[currentOverrideKeyOffset]);
+                ParseScriptString(overrideValues[2], currentOverride.notetrackSoundMapValues[currentOverrideKeyOffset]);
+                currentOverrideKeyOffset++;
+            }
+
+            if (currentOverrideKeyOffset > 0u)
+                overrideVector.emplace_back(currentOverride);
+
+            m_weapon->weapCompleteDef.notetrackOverrides = m_memory->Alloc<NoteTrackToSoundEntry>(overrideVector.size());
+            memcpy(m_weapon->weapCompleteDef.notetrackOverrides, overrideVector.data(), sizeof(NoteTrackToSoundEntry) * overrideVector.size());
+            m_weapon->weapCompleteDef.numNotetrackOverrides = overrideVector.size();
+
+            return true;
+        }
+
+        bool ParseSingleWeaponAttachment(const std::string& value, WeaponAttachmentCombination& attachment)
+        {
+            attachment.fields = 0u;
+            if (value == "none")
+                return true;
+
+            for (auto i = 0u; i < std::extent_v<decltype(WeaponFullDef::scopes)>; i++)
+            {
+                const auto* scope = m_weapon->scopes[i];
+                if (scope && scope->szInternalName && value == scope->szInternalName)
+                {
+                    attachment.scope = static_cast<unsigned short>(i + 1);
+                    return true;
+                }
+            }
+
+            for (auto i = 0u; i < std::extent_v<decltype(WeaponFullDef::underBarrels)>; i++)
+            {
+                const auto* underBarrel = m_weapon->underBarrels[i];
+                if (underBarrel && underBarrel->szInternalName && value == underBarrel->szInternalName)
+                {
+                    attachment.underBarrel = static_cast<unsigned short>(i + 1);
+                    return true;
+                }
+            }
+
+            for (auto i = 0u; i < std::extent_v<decltype(WeaponFullDef::others)>; i++)
+            {
+                const auto* other = m_weapon->others[i];
+                if (other && other->szInternalName && value == other->szInternalName)
+                {
+                    attachment.other = static_cast<unsigned short>(1u << i);
+                    return true;
+                }
+            }
+
+            std::cerr << "Weapon does not have attachment \"" << value << "\"\n";
+            return false;
+        }
+
+        void ParseAnim(const std::string& value, const char*& animName)
+        {
+            if (value == "none")
+            {
+                animName = nullptr;
+                return;
+            }
+
+            animName = m_memory->Dup(value.c_str());
+            m_indirect_asset_references.emplace(m_loading_manager->LoadIndirectAssetReference<AssetXAnim>(value));
+        }
+
+        void ParseSoundAlias(const std::string& value, SndAliasCustom& soundAlias)
+        {
+            if (value == "none")
+            {
+                soundAlias.name = nullptr;
+                return;
+            }
+
+            soundAlias.name = m_memory->Alloc<snd_alias_list_name>();
+            soundAlias.name->soundName = m_memory->Dup(value.c_str());
+            m_indirect_asset_references.emplace(m_loading_manager->LoadIndirectAssetReference<AssetSound>(value));
+        }
+
+        bool ParseFxEffectDef(const std::string& value, FxEffectDef*& fx)
+        {
+            if (value == "none")
+            {
+                fx = nullptr;
+                return true;
+            }
+
+            auto* fxInfo = m_loading_manager->LoadDependency<AssetFx>(value);
+            if (!fxInfo)
+            {
+                std::cerr << "Failed to load fx for override \"" << value << "\"\n";
+                return false;
+            }
+
+            fx = fxInfo->Asset();
+            m_dependencies.emplace(fxInfo);
+
+            return true;
+        }
+
+        static bool ParseAnimFile(const std::string& value, weapAnimFiles_t& animFile)
+        {
+            for (auto i = 0u; i < std::extent_v<decltype(weapAnimFilesNames)>; i++)
+            {
+                if (value == weapAnimFilesNames[i])
+                {
+                    animFile = static_cast<weapAnimFiles_t>(i);
+                    return true;
+                }
+            }
+
+            std::cerr << "Unknown anim file \"" << value << "\"\n";
+            return false;
+        }
+
+        static bool ParseSoundType(const std::string& value, SoundOverrideTypes& soundType)
+        {
+            for (auto i = 0u; i < std::extent_v<decltype(soundOverrideTypeNames)>; i++)
+            {
+                if (value == soundOverrideTypeNames[i])
+                {
+                    soundType = static_cast<SoundOverrideTypes>(i);
+                    return true;
+                }
+            }
+
+            std::cerr << "Unknown sound type \"" << value << "\"\n";
+            return false;
+        }
+
+        static bool ParseFxType(const std::string& value, FxOverrideTypes& fxType)
+        {
+            for (auto i = 0u; i < std::extent_v<decltype(fxOverrideTypeNames)>; i++)
+            {
+                if (value == fxOverrideTypeNames[i])
+                {
+                    fxType = static_cast<FxOverrideTypes>(i);
+                    return true;
+                }
+            }
+
+            std::cerr << "Unknown fx type \"" << value << "\"\n";
+            return false;
+        }
+
+        static bool ParseInt(const std::string& value, int& out)
+        {
+            size_t size;
+            out = std::stoi(value, &size);
+
+            if (size != value.size())
+            {
+                std::cerr << "Invalid int value: \"" << value << "\"\n";
+                return false;
+            }
+
+            return true;
+        }
+
+        void ParseScriptString(const std::string& value, ScriptString& out)
+        {
+            out = m_zone_script_strings.AddOrGetScriptString(value);
+            m_used_script_string_list.emplace(out);
+        }
+
     protected:
         bool ConvertExtensionField(const cspField_t& field, const std::string& value) override
         {
@@ -183,8 +588,8 @@ namespace
             case WFT_GUIDED_MISSILE_TYPE:
                 return ConvertEnumInt(value, field.iOffset, guidedMissileNames, std::extent_v<decltype(guidedMissileNames)>);
 
-            case WFT_BOUNCE_SOUND:
-                return ConvertBounceSounds(field, value);
+            case WFT_PER_SURFACE_TYPE_SOUND:
+                return ConvertPerSurfaceTypeSound(field, value);
 
             case WFT_STICKINESS:
                 return ConvertEnumInt(value, field.iOffset, stickinessNames, std::extent_v<decltype(stickinessNames)>);
@@ -212,13 +617,31 @@ namespace
                 return ConvertHideTags(field, value);
 
             case WFT_NOTETRACKSOUNDMAP:
-                return ConvertNotetrackMap(field, value, "sound", std::extent_v<decltype(WeaponFullDef::notetrackSoundMapKeys)>);
+                return ConvertNoteTrackMap(field, value, "sound", std::extent_v<decltype(WeaponFullDef::notetrackSoundMapKeys)>);
 
             case WFT_NOTETRACKRUMBLEMAP:
-                return ConvertNotetrackMap(field, value, "rumble", std::extent_v<decltype(WeaponFullDef::notetrackRumbleMapKeys)>);
+                return ConvertNoteTrackMap(field, value, "rumble", std::extent_v<decltype(WeaponFullDef::notetrackRumbleMapKeys)>);
 
             case WFT_ANIM_NAME:
                 return ConvertAnimName(field, value);
+
+            case WFT_ATTACHMENT:
+                return ConvertAttachments(value);
+
+            case WFT_ANIM_OVERRIDES:
+                return ConvertAnimOverrides(value);
+
+            case WFT_SOUND_OVERRIDES:
+                return ConvertSoundOverrides(value);
+
+            case WFT_FX_OVERRIDES:
+                return ConvertFxOverrides(value);
+
+            case WFT_RELOAD_OVERRIDES:
+                return ConvertReloadOverrides(value);
+
+            case WFT_NOTETRACK_OVERRIDES:
+                return ConvertNoteTrackOverrides(value);
 
             default:
                 assert(false);
@@ -236,7 +659,11 @@ namespace
                                     const size_t fieldCount)
             : InfoStringToStructConverter(infoString, weaponFullDef, zoneScriptStrings, memory, manager, fields, fieldCount)
         {
+            m_weapon = weaponFullDef;
         }
+
+    private:
+        WeaponFullDef* m_weapon;
     };
 
     void InitWeaponFullDef(WeaponFullDef* weapon)
@@ -244,6 +671,9 @@ namespace
         weapon->weapCompleteDef.weapDef = &weapon->weapDef;
         weapon->weapCompleteDef.hideTags = weapon->hideTags;
         weapon->weapCompleteDef.szXAnims = weapon->szXAnims;
+        weapon->weapCompleteDef.scopes = weapon->scopes;
+        weapon->weapCompleteDef.underBarrels = weapon->underBarrels;
+        weapon->weapCompleteDef.others = weapon->others;
         weapon->weapDef.gunXModel = weapon->gunXModel;
         weapon->weapDef.szXAnimsRightHanded = weapon->szXAnimsRightHanded;
         weapon->weapDef.szXAnimsLeftHanded = weapon->szXAnimsLeftHanded;
@@ -432,7 +862,7 @@ bool AssetLoaderWeapon::CanLoadFromRaw() const
 bool AssetLoaderWeapon::LoadFromRaw(
     const std::string& assetName, ISearchPath* searchPath, MemoryManager* memory, IAssetLoadingManager* manager, Zone* zone) const
 {
-    const auto fileName = "weapons/" + assetName;
+    const auto fileName = std::format("weapons/{}", assetName);
     const auto file = searchPath->Open(fileName);
     if (!file.IsOpen())
         return false;

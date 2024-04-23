@@ -31,14 +31,14 @@ bool AssetLoaderRawFile::LoadFromRaw(
     rawFile->name = memory->Dup(assetName.c_str());
     rawFile->len = static_cast<int>(file.m_length);
 
-    auto* fileBuffer = static_cast<char*>(memory->Alloc(static_cast<size_t>(file.m_length + 1)));
+    auto* fileBuffer = memory->Alloc<char>(static_cast<size_t>(file.m_length + 1));
     file.m_stream->read(fileBuffer, file.m_length);
     if (file.m_stream->gcount() != file.m_length)
         return false;
     fileBuffer[rawFile->len] = '\0';
 
     rawFile->buffer = fileBuffer;
-    manager->AddAsset(ASSET_TYPE_RAWFILE, assetName, rawFile);
+    manager->AddAsset<AssetRawFile>(assetName, rawFile);
 
     return true;
 }

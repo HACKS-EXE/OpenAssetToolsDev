@@ -31,14 +31,14 @@ bool AssetLoaderScriptParseTree::LoadFromRaw(
     scriptParseTree->name = memory->Dup(assetName.c_str());
     scriptParseTree->len = static_cast<int>(file.m_length);
 
-    auto* fileBuffer = static_cast<char*>(memory->Alloc(static_cast<size_t>(file.m_length + 1)));
+    auto* fileBuffer = memory->Alloc<char>(static_cast<size_t>(file.m_length + 1));
     file.m_stream->read(fileBuffer, file.m_length);
     if (file.m_stream->gcount() != file.m_length)
         return false;
     fileBuffer[scriptParseTree->len] = '\0';
 
     scriptParseTree->buffer = static_cast<char16*>(fileBuffer);
-    manager->AddAsset(ASSET_TYPE_SCRIPTPARSETREE, assetName, scriptParseTree);
+    manager->AddAsset<AssetScript>(assetName, scriptParseTree);
 
     return true;
 }

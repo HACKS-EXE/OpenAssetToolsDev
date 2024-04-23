@@ -46,13 +46,12 @@ bool AssetLoaderMaterial::LoadFromRaw(
     if (!file.IsOpen())
         return false;
 
-    auto* material = static_cast<Material*>(memory->Alloc(sizeof(Material)));
-    memset(material, 0, sizeof(Material));
+    auto* material = memory->Alloc<Material>();
     material->info.name = memory->Dup(assetName.c_str());
 
     std::vector<XAssetInfoGeneric*> dependencies;
     if (LoadMaterialAsJson(*file.m_stream, *material, memory, manager, dependencies))
-        manager->AddAsset(ASSET_TYPE_MATERIAL, assetName, material, std::move(dependencies));
+        manager->AddAsset<AssetMaterial>(assetName, material, std::move(dependencies));
     else
         std::cerr << "Failed to load material \"" << assetName << "\"\n";
 

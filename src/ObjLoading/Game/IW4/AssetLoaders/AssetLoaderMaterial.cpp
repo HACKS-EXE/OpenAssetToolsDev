@@ -808,7 +808,7 @@ namespace IW4
 
         void SetTechniqueSet(const std::string& techsetName)
         {
-            auto* techset = reinterpret_cast<XAssetInfo<MaterialTechniqueSet>*>(m_manager->LoadDependency(ASSET_TYPE_TECHNIQUE_SET, techsetName));
+            auto* techset = m_manager->LoadDependency<AssetTechniqueSet>(techsetName);
 
             if (techset == nullptr)
             {
@@ -994,7 +994,7 @@ namespace IW4
                 break;
             }
 
-            auto* image = reinterpret_cast<XAssetInfo<GfxImage>*>(m_manager->LoadDependency(ASSET_TYPE_IMAGE, textureName));
+            auto* image = m_manager->LoadDependency<AssetImage>(textureName);
 
             if (image == nullptr)
             {
@@ -1287,7 +1287,7 @@ namespace IW4
         {
             if (!m_textures.empty())
             {
-                m_material->textureTable = static_cast<MaterialTextureDef*>(m_memory->Alloc(sizeof(MaterialTextureDef) * m_textures.size()));
+                m_material->textureTable = m_memory->Alloc<MaterialTextureDef>(m_textures.size());
                 m_material->textureCount = static_cast<unsigned char>(m_textures.size());
                 memcpy(m_material->textureTable, m_textures.data(), sizeof(MaterialTextureDef) * m_textures.size());
             }
@@ -1299,7 +1299,7 @@ namespace IW4
 
             if (!m_constants.empty())
             {
-                m_material->constantTable = static_cast<MaterialConstantDef*>(m_memory->Alloc(sizeof(MaterialConstantDef) * m_constants.size()));
+                m_material->constantTable = m_memory->Alloc<MaterialConstantDef>(m_constants.size());
                 m_material->constantCount = static_cast<unsigned char>(m_constants.size());
                 memcpy(m_material->constantTable, m_constants.data(), sizeof(MaterialConstantDef) * m_constants.size());
             }
@@ -1311,7 +1311,7 @@ namespace IW4
 
             if (!m_state_bits.empty())
             {
-                m_material->stateBitsTable = static_cast<GfxStateBits*>(m_memory->Alloc(sizeof(GfxStateBits) * m_state_bits.size()));
+                m_material->stateBitsTable = m_memory->Alloc<GfxStateBits>(m_state_bits.size());
                 m_material->stateBitsCount = static_cast<unsigned char>(m_state_bits.size());
                 memcpy(m_material->stateBitsTable, m_state_bits.data(), sizeof(GfxStateBits) * m_state_bits.size());
             }
@@ -1381,7 +1381,9 @@ bool AssetLoaderMaterial::LoadFromGdt(
     try
     {
         if (loader.Load())
-            manager->AddAsset(ASSET_TYPE_MATERIAL, assetName, loader.GetMaterial(), loader.GetDependencies(), std::vector<scr_string_t>());
+        {
+            manager->AddAsset<AssetMaterial>(assetName, loader.GetMaterial(), loader.GetDependencies());
+        }
     }
     catch (const SkipMaterialException&)
     {

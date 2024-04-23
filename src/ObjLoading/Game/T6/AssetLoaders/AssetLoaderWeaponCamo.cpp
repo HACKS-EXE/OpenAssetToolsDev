@@ -32,13 +32,12 @@ bool AssetLoaderWeaponCamo::LoadFromRaw(
     if (!file.IsOpen())
         return false;
 
-    auto* weaponCamo = static_cast<WeaponCamo*>(memory->Alloc(sizeof(WeaponCamo)));
-    memset(weaponCamo, 0, sizeof(WeaponCamo));
+    auto* weaponCamo = memory->Alloc<WeaponCamo>();
     weaponCamo->name = memory->Dup(assetName.c_str());
 
     std::vector<XAssetInfoGeneric*> dependencies;
     if (LoadWeaponCamoAsJson(*file.m_stream, *weaponCamo, memory, manager, dependencies))
-        manager->AddAsset(ASSET_TYPE_WEAPON_CAMO, assetName, weaponCamo, std::move(dependencies));
+        manager->AddAsset<AssetWeaponCamo>(assetName, weaponCamo, std::move(dependencies));
     else
         std::cerr << "Failed to load weapon camo \"" << assetName << "\"\n";
 
