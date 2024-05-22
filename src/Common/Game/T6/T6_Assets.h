@@ -1946,7 +1946,22 @@ namespace T6
         LBUPDATE_TYPE_NORMAL = 0x0,
         LBUPDATE_TYPE_RANK = 0x1,
         LBUPDATE_TYPE_COMBINE = 0x2,
-        LBUPDATE_TYPE_COUNT = 0x3,
+
+        LBUPDATE_TYPE_COUNT
+    };
+
+    enum LbTrackType
+    {
+        TRK_ALLTIME = 0x0,
+        TRK_WEEKLY = 0x1,
+        TRK_MONTHLY = 0x2,
+        TRK_PRESTIGE_ALLTIME = 0x3,
+        TRK_PRESTIGE_WEEKLY = 0x4,
+        TRK_PRESTIGE_MONTHLY = 0x5,
+        TRK_DAILY = 0x6,
+        TRK_PRESTIGE_DAILY = 0x7,
+
+        TRK_COUNT
     };
 
     struct LeaderboardDef
@@ -4845,20 +4860,16 @@ namespace T6
         float fAntiQuickScopeSwayFactor;
         float fightDist;
         float maxDist;
-        // const char *accuracyGraphName[2];   // TODO: Order is accuracyGraphName[0] -> accuracyGraphKnots[0] -> originalAccuracyGraphKnots[0] ->
-        // accuracyGraphName[1] -> ...
-        //  Which is currently not possible to do in code generation. Afaik this is the only place where this is the case.
-        //  So might be something to fix but on the other hand it might be too much work for this little inconvenience.
-        const char* accuracyGraphName0;
-        const char* accuracyGraphName1;
-        // vec2_t *accuracyGraphKnots[2];
-        vec2_t* accuracyGraphKnots0;
-        vec2_t* accuracyGraphKnots1;
-        // vec2_t *originalAccuracyGraphKnots[2];
-        vec2_t* originalAccuracyGraphKnots0;
-        vec2_t* originalAccuracyGraphKnots1;
-        int accuracyGraphKnotCount[2];
-        int originalAccuracyGraphKnotCount[2];
+        const char* aiVsAiAccuracyGraphName;
+        const char* aiVsPlayerAccuracyGraphName;
+        vec2_t* aiVsAiAccuracyGraphKnots;
+        vec2_t* aiVsPlayerAccuracyGraphKnots;
+        vec2_t* originalAiVsAiAccuracyGraphKnots;
+        vec2_t* originalAiVsPlayerAccuracyGraphKnots;
+        int aiVsAiAccuracyGraphKnotCount;
+        int aiVsPlayerAccuracyGraphKnotCount;
+        int originalAiVsAiAccuracyGraphKnotCount;
+        int originalAiVsPlayerAccuracyGraphKnotCount;
         int iPositionReloadTransTime;
         float leftArc;
         float rightArc;
