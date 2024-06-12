@@ -6,9 +6,12 @@
 
 namespace IW4
 {
-    class AssetLoaderLeaderboard final : public BasicAssetLoader<ASSET_TYPE_LEADERBOARD, LeaderboardDef>
+    class AssetLoaderLeaderboard final : public BasicAssetLoader<AssetLeaderboard>
     {
     public:
         _NODISCARD void* CreateEmptyAsset(const std::string& assetName, MemoryManager* memory) override;
+        _NODISCARD bool CanLoadFromRaw() const override;
+        bool
+            LoadFromRaw(const std::string& assetName, ISearchPath* searchPath, MemoryManager* memory, IAssetLoadingManager* manager, Zone* zone) const override;
     };
 } // namespace IW4
