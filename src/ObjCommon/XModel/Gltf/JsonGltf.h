@@ -25,12 +25,13 @@ namespace gltf
         std::optional<std::array<float, 3>> translation;
         std::optional<std::array<float, 4>> rotation;
         std::optional<std::array<float, 3>> scale;
+        std::optional<std::array<float, 16>> matrix;
         std::optional<std::vector<unsigned>> children;
         std::optional<unsigned> skin;
         std::optional<unsigned> mesh;
     };
 
-    NLOHMANN_DEFINE_TYPE_EXTENSION(JsonNode, name, translation, rotation, scale, children, skin, mesh);
+    NLOHMANN_DEFINE_TYPE_EXTENSION(JsonNode, name, translation, rotation, scale, matrix, children, skin, mesh);
 
     class JsonBuffer
     {
@@ -258,6 +259,7 @@ namespace gltf
     public:
         std::optional<unsigned> POSITION;
         std::optional<unsigned> NORMAL;
+        std::optional<unsigned> COLOR_0;
         std::optional<unsigned> TEXCOORD_0;
         std::optional<unsigned> JOINTS_0;
         std::optional<unsigned> WEIGHTS_0;

@@ -12,11 +12,9 @@ using namespace T6;
 
 void* AssetLoaderXModel::CreateEmptyAsset(const std::string& assetName, MemoryManager* memory)
 {
-    auto* xmodel = memory->Create<XModel>();
-    memset(xmodel, 0, sizeof(XModel));
-    xmodel->name = memory->Dup(assetName.c_str());
-
-    return xmodel;
+    auto* asset = memory->Alloc<AssetXModel::Type>();
+    asset->name = memory->Dup(assetName.c_str());
+    return asset;
 }
 
 bool AssetLoaderXModel::CanLoadFromRaw() const
@@ -38,7 +36,7 @@ bool AssetLoaderXModel::LoadFromRaw(
     if (LoadXModelAsJson(*file.m_stream, *xmodel, memory, manager, dependencies))
         manager->AddAsset<AssetXModel>(assetName, xmodel, std::move(dependencies));
     else
-        std::cerr << "Failed to load xmodel \"" << assetName << "\"\n";
+        std::cerr << std::format("Failed to load xmodel \"{}\"\n", assetName);
 
     return true;
 }

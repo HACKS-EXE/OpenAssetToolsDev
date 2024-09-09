@@ -1,6 +1,7 @@
 #include "AssetDumperXModel.h"
 
 #include "Game/T6/CommonT6.h"
+#include "Game/T6/XModel/JsonXModelWriter.h"
 #include "ObjWriting.h"
 #include "Utils/DistinctMapper.h"
 #include "Utils/QuatInt16.h"
@@ -113,6 +114,44 @@ namespace
         return potentialTextureDefs[0]->image;
     }
 
+    bool HasDefaultArmature(const XModel* model, const unsigned lod)
+    {
+        if (model->numRootBones != 1 || model->numBones != 1)
+            return false;
+
+        const auto* surfs = &model->surfs[model->lodInfo[lod].surfIndex];
+        const auto surfCount = model->lodInfo[lod].numsurfs;
+
+        if (!surfs)
+            return true;
+
+        for (auto surfIndex = 0u; surfIndex < surfCount; surfIndex++)
+        {
+            const auto& surface = surfs[surfIndex];
+
+            if (surface.vertListCount != 1 || surface.vertInfo.vertsBlend)
+                return false;
+
+            const auto& vertList = surface.vertList[0];
+            if (vertList.boneOffset != 0 || vertList.triOffset != 0 || vertList.triCount != surface.triCount || vertList.vertCount != surface.vertCount)
+                return false;
+        }
+
+        return true;
+    }
+
+    void OmitDefaultArmature(XModelCommon& common)
+    {
+        common.m_bones.clear();
+        common.m_bone_weight_data.weights.clear();
+        common.m_vertex_bone_weights.resize(common.m_vertices.size());
+        for (auto& vertexWeights : common.m_vertex_bone_weights)
+        {
+            vertexWeights.weightOffset = 0u;
+            vertexWeights.weightCount = 0u;
+        }
+    }
+
     void AddXModelBones(XModelCommon& out, const AssetDumpingContext& context, const XModel* model)
     {
         for (auto boneNum = 0u; boneNum < model->numBones; boneNum++)
@@ -123,23 +162,24 @@ namespace
             else
                 bone.name = "INVALID_BONE_NAME";
 
-            if (boneNum < model->numRootBones)
-                bone.parentIndex = -1;
-            else
+            if (boneNum >= model->numRootBones)
                 bone.parentIndex = static_cast<int>(boneNum - static_cast<unsigned int>(model->parentList[boneNum - model->numRootBones]));
+            else
+                bone.parentIndex = std::nullopt;
 
             bone.scale[0] = 1.0f;
             bone.scale[1] = 1.0f;
             bone.scale[2] = 1.0f;
 
-            bone.globalOffset[0] = model->baseMat[boneNum].trans.x;
-            bone.globalOffset[1] = model->baseMat[boneNum].trans.y;
-            bone.globalOffset[2] = model->baseMat[boneNum].trans.z;
+            const auto& baseMat = model->baseMat[boneNum];
+            bone.globalOffset[0] = baseMat.trans.x;
+            bone.globalOffset[1] = baseMat.trans.y;
+            bone.globalOffset[2] = baseMat.trans.z;
             bone.globalRotation = {
-                model->baseMat[boneNum].quat.x,
-                model->baseMat[boneNum].quat.y,
-                model->baseMat[boneNum].quat.z,
-                model->baseMat[boneNum].quat.w,
+                baseMat.quat.x,
+                baseMat.quat.y,
+                baseMat.quat.z,
+                baseMat.quat.w,
             };
 
             if (boneNum < model->numRootBones)
@@ -151,14 +191,17 @@ namespace
             }
             else
             {
-                bone.localOffset[0] = model->trans[boneNum - model->numRootBones][0];
-                bone.localOffset[1] = model->trans[boneNum - model->numRootBones][1];
-                bone.localOffset[2] = model->trans[boneNum - model->numRootBones][2];
+                const auto* trans = &model->trans[(boneNum - model->numRootBones) * 3];
+                bone.localOffset[0] = trans[0];
+                bone.localOffset[1] = trans[1];
+                bone.localOffset[2] = trans[2];
+
+                const auto& quat = model->quats[boneNum - model->numRootBones];
                 bone.localRotation = {
-                    QuatInt16::ToFloat(model->quats[boneNum - model->numRootBones][0]),
-                    QuatInt16::ToFloat(model->quats[boneNum - model->numRootBones][1]),
-                    QuatInt16::ToFloat(model->quats[boneNum - model->numRootBones][2]),
-                    QuatInt16::ToFloat(model->quats[boneNum - model->numRootBones][3]),
+                    QuatInt16::ToFloat(quat.v[0]),
+                    QuatInt16::ToFloat(quat.v[1]),
+                    QuatInt16::ToFloat(quat.v[2]),
+                    QuatInt16::ToFloat(quat.v[3]),
                 };
             }
 
@@ -232,27 +275,14 @@ namespace
             for (auto vertexIndex = 0u; vertexIndex < surface.vertCount; vertexIndex++)
             {
                 const auto& v = surface.verts0[vertexIndex];
-                vec2_t uv{};
-                vec3_t normalVec{};
-                vec4_t color{};
-
-                Common::Vec2UnpackTexCoords(v.texCoord, &uv);
-                Common::Vec3UnpackUnitVec(v.normal, &normalVec);
-                Common::Vec4UnpackGfxColor(v.color, &color);
 
                 XModelVertex vertex{};
                 vertex.coordinates[0] = v.xyz.x;
                 vertex.coordinates[1] = v.xyz.y;
                 vertex.coordinates[2] = v.xyz.z;
-                vertex.normal[0] = normalVec.x;
-                vertex.normal[1] = normalVec.y;
-                vertex.normal[2] = normalVec.z;
-                vertex.color[0] = color.x;
-                vertex.color[1] = color.y;
-                vertex.color[2] = color.z;
-                vertex.color[3] = color.w;
-                vertex.uv[0] = uv.x;
-                vertex.uv[1] = uv.y;
+                Common::Vec3UnpackUnitVec(v.normal, vertex.normal);
+                Common::Vec4UnpackGfxColor(v.color, vertex.color);
+                Common::Vec2UnpackTexCoords(v.texCoord, vertex.uv);
 
                 out.m_vertices.emplace_back(vertex);
             }
@@ -315,9 +345,9 @@ namespace
                 for (auto vertListIndex = 0u; vertListIndex < surface.vertListCount; vertListIndex++)
                 {
                     const auto& vertList = surface.vertList[vertListIndex];
-                    const auto* boneWeightOffset = &weightCollection.weights[weightOffset];
+                    const auto boneWeightOffset = weightOffset;
 
-                    weightCollection.weights[weightOffset++] = XModelBoneWeight{static_cast<int>(vertList.boneOffset / sizeof(DObjSkelMat)), 1.0f};
+                    weightCollection.weights[weightOffset++] = XModelBoneWeight{vertList.boneOffset / sizeof(DObjSkelMat), 1.0f};
 
                     for (auto vertListVertexOffset = 0u; vertListVertexOffset < vertList.vertCount; vertListVertexOffset++)
                     {
@@ -333,8 +363,8 @@ namespace
                 // 1 bone weight
                 for (auto vertIndex = 0; vertIndex < surface.vertInfo.vertCount[0]; vertIndex++)
                 {
-                    const auto* boneWeightOffset = &weightCollection.weights[weightOffset];
-                    const auto boneIndex0 = static_cast<int>(surface.vertInfo.vertsBlend[vertsBlendOffset + 0] / sizeof(DObjSkelMat));
+                    const auto boneWeightOffset = weightOffset;
+                    const auto boneIndex0 = surface.vertInfo.vertsBlend[vertsBlendOffset + 0] / sizeof(DObjSkelMat);
                     weightCollection.weights[weightOffset++] = XModelBoneWeight{boneIndex0, 1.0f};
 
                     vertsBlendOffset += 1;
@@ -345,9 +375,9 @@ namespace
                 // 2 bone weights
                 for (auto vertIndex = 0; vertIndex < surface.vertInfo.vertCount[1]; vertIndex++)
                 {
-                    const auto* boneWeightOffset = &weightCollection.weights[weightOffset];
-                    const auto boneIndex0 = static_cast<int>(surface.vertInfo.vertsBlend[vertsBlendOffset + 0] / sizeof(DObjSkelMat));
-                    const auto boneIndex1 = static_cast<int>(surface.vertInfo.vertsBlend[vertsBlendOffset + 1] / sizeof(DObjSkelMat));
+                    const auto boneWeightOffset = weightOffset;
+                    const auto boneIndex0 = surface.vertInfo.vertsBlend[vertsBlendOffset + 0] / sizeof(DObjSkelMat);
+                    const auto boneIndex1 = surface.vertInfo.vertsBlend[vertsBlendOffset + 1] / sizeof(DObjSkelMat);
                     const auto boneWeight1 = BoneWeight16(surface.vertInfo.vertsBlend[vertsBlendOffset + 2]);
                     const auto boneWeight0 = 1.0f - boneWeight1;
 
@@ -362,11 +392,11 @@ namespace
                 // 3 bone weights
                 for (auto vertIndex = 0; vertIndex < surface.vertInfo.vertCount[2]; vertIndex++)
                 {
-                    const auto* boneWeightOffset = &weightCollection.weights[weightOffset];
-                    const auto boneIndex0 = static_cast<int>(surface.vertInfo.vertsBlend[vertsBlendOffset + 0] / sizeof(DObjSkelMat));
-                    const auto boneIndex1 = static_cast<int>(surface.vertInfo.vertsBlend[vertsBlendOffset + 1] / sizeof(DObjSkelMat));
+                    const auto boneWeightOffset = weightOffset;
+                    const auto boneIndex0 = surface.vertInfo.vertsBlend[vertsBlendOffset + 0] / sizeof(DObjSkelMat);
+                    const auto boneIndex1 = surface.vertInfo.vertsBlend[vertsBlendOffset + 1] / sizeof(DObjSkelMat);
                     const auto boneWeight1 = BoneWeight16(surface.vertInfo.vertsBlend[vertsBlendOffset + 2]);
-                    const auto boneIndex2 = static_cast<int>(surface.vertInfo.vertsBlend[vertsBlendOffset + 3] / sizeof(DObjSkelMat));
+                    const auto boneIndex2 = surface.vertInfo.vertsBlend[vertsBlendOffset + 3] / sizeof(DObjSkelMat);
                     const auto boneWeight2 = BoneWeight16(surface.vertInfo.vertsBlend[vertsBlendOffset + 4]);
                     const auto boneWeight0 = 1.0f - boneWeight1 - boneWeight2;
 
@@ -382,13 +412,13 @@ namespace
                 // 4 bone weights
                 for (auto vertIndex = 0; vertIndex < surface.vertInfo.vertCount[3]; vertIndex++)
                 {
-                    const auto* boneWeightOffset = &weightCollection.weights[weightOffset];
-                    const auto boneIndex0 = static_cast<int>(surface.vertInfo.vertsBlend[vertsBlendOffset + 0] / sizeof(DObjSkelMat));
-                    const auto boneIndex1 = static_cast<int>(surface.vertInfo.vertsBlend[vertsBlendOffset + 1] / sizeof(DObjSkelMat));
+                    const auto boneWeightOffset = weightOffset;
+                    const auto boneIndex0 = surface.vertInfo.vertsBlend[vertsBlendOffset + 0] / sizeof(DObjSkelMat);
+                    const auto boneIndex1 = surface.vertInfo.vertsBlend[vertsBlendOffset + 1] / sizeof(DObjSkelMat);
                     const auto boneWeight1 = BoneWeight16(surface.vertInfo.vertsBlend[vertsBlendOffset + 2]);
-                    const auto boneIndex2 = static_cast<int>(surface.vertInfo.vertsBlend[vertsBlendOffset + 3] / sizeof(DObjSkelMat));
+                    const auto boneIndex2 = surface.vertInfo.vertsBlend[vertsBlendOffset + 3] / sizeof(DObjSkelMat);
                     const auto boneWeight2 = BoneWeight16(surface.vertInfo.vertsBlend[vertsBlendOffset + 4]);
-                    const auto boneIndex3 = static_cast<int>(surface.vertInfo.vertsBlend[vertsBlendOffset + 5] / sizeof(DObjSkelMat));
+                    const auto boneIndex3 = surface.vertInfo.vertsBlend[vertsBlendOffset + 5] / sizeof(DObjSkelMat);
                     const auto boneWeight3 = BoneWeight16(surface.vertInfo.vertsBlend[vertsBlendOffset + 6]);
                     const auto boneWeight0 = 1.0f - boneWeight1 - boneWeight2 - boneWeight3;
 
@@ -408,7 +438,7 @@ namespace
 
             for (; handledVertices < surface.vertCount; handledVertices++)
             {
-                out.m_vertex_bone_weights.emplace_back(nullptr, 0);
+                out.m_vertex_bone_weights.emplace_back(0, 0);
             }
         }
     }
@@ -432,9 +462,9 @@ namespace
                 const auto& tri = surface.triIndices[triIndex];
 
                 XModelFace face{};
-                face.vertexIndex[0] = tri[0] + surface.baseVertIndex;
-                face.vertexIndex[1] = tri[1] + surface.baseVertIndex;
-                face.vertexIndex[2] = tri[2] + surface.baseVertIndex;
+                face.vertexIndex[0] = tri.i[0] + surface.baseVertIndex;
+                face.vertexIndex[1] = tri.i[1] + surface.baseVertIndex;
+                face.vertexIndex[2] = tri.i[2] + surface.baseVertIndex;
                 object.m_faces.emplace_back(face);
             }
         }
@@ -446,12 +476,20 @@ namespace
         AllocateXModelBoneWeights(model, lod, out.m_bone_weight_data);
 
         out.m_name = std::format("{}_lod{}", model->name, lod);
-        AddXModelBones(out, context, model);
         AddXModelMaterials(out, materialMapper, model);
         AddXModelObjects(out, model, lod, materialMapper);
         AddXModelVertices(out, model, lod);
-        AddXModelVertexBoneWeights(out, model, lod);
         AddXModelFaces(out, model, lod);
+
+        if (!HasDefaultArmature(model, lod))
+        {
+            AddXModelBones(out, context, model);
+            AddXModelVertexBoneWeights(out, model, lod);
+        }
+        else
+        {
+            OmitDefaultArmature(out);
+        }
     }
 
     void DumpObjMtl(const XModelCommon& common, const AssetDumpingContext& context, const XAssetInfo<XModel>* asset)
@@ -546,6 +584,15 @@ namespace
             }
         }
     }
+
+    void DumpXModel(AssetDumpingContext& context, XAssetInfo<XModel>* asset)
+    {
+        const auto assetFile = context.OpenAssetFile(std::format("xmodel/{}.json", asset->m_name));
+        if (!assetFile)
+            return;
+
+        DumpXModelAsJson(*assetFile, asset->Asset(), context);
+    }
 } // namespace
 
 bool AssetDumperXModel::ShouldDump(XAssetInfo<XModel>* asset)
@@ -556,4 +603,5 @@ bool AssetDumperXModel::ShouldDump(XAssetInfo<XModel>* asset)
 void AssetDumperXModel::DumpAsset(AssetDumpingContext& context, XAssetInfo<XModel>* asset)
 {
     DumpXModelSurfs(context, asset);
+    DumpXModel(context, asset);
 }
