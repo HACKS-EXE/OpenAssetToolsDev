@@ -3,6 +3,7 @@ ObjWriting = {}
 function ObjWriting:include(includes)
 	if includes:handle(self:name()) then
 		ObjCommon:include(includes)
+		ObjImage:include(includes)
 		ObjLoading:include(includes)
 		ZoneCommon:include(includes)
 		includedirs {
@@ -15,6 +16,7 @@ function ObjWriting:link(links)
 	links:add(self:name())
 	links:linkto(Utils)
 	links:linkto(ObjCommon)
+	links:linkto(ObjImage)
 	links:linkto(ObjLoading)
 	links:linkto(ZoneCommon)
 	links:linkto(minilzo)
@@ -50,6 +52,8 @@ function ObjWriting:project()
 				path.join(folder, "ObjWriting")
 			}
 		}
+
+		useSourceTemplating("ObjWriting")
 		
         self:include(includes)
 		Utils:include(includes)

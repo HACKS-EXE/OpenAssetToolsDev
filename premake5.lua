@@ -4,6 +4,7 @@ include "tools/scripts/linking.lua"
 include "tools/scripts/options.lua"
 include "tools/scripts/platform.lua"
 include "tools/scripts/version.lua"
+include "tools/scripts/source_templating.lua"
 
 -- ==================
 -- Workspace
@@ -111,6 +112,7 @@ group ""
 -- ========================
 include "src/Common.lua"
 include "src/Crypto.lua"
+include "src/ImageConverter.lua"
 include "src/Linker.lua"
 include "src/Parser.lua"
 include "src/RawTemplater.lua"
@@ -124,6 +126,7 @@ include "src/ZoneLoading.lua"
 include "src/ZoneWriting.lua"
 include "src/ZoneCommon.lua"
 include "src/ObjCommon.lua"
+include "src/ObjImage.lua"
 include "src/ObjLoading.lua"
 include "src/ObjWriting.lua"
 include "tools/scripts/raw.lua"
@@ -140,6 +143,7 @@ group "Components"
     ZoneLoading:project()
     ZoneWriting:project()
     ObjCommon:project()
+    ObjImage:project()
     ObjLoading:project()
     ObjWriting:project()
 group ""
@@ -154,6 +158,7 @@ group ""
 group "Tools"
     Linker:project()
     Unlinker:project()
+    ImageConverter:project()
 group ""
 
 group "Raw"

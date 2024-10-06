@@ -3,6 +3,7 @@ ObjLoading = {}
 function ObjLoading:include(includes)
 	if includes:handle(self:name()) then
 		ObjCommon:include(includes)
+		ObjImage:include(includes)
 		ZoneCommon:include(includes)
 		includedirs {
 			path.join(ProjectFolder(), "ObjLoading")
@@ -14,6 +15,7 @@ function ObjLoading:link(links)
 	links:add(self:name())
 	links:linkto(Utils)
 	links:linkto(ObjCommon)
+	links:linkto(ObjImage)
 	links:linkto(ZoneCommon)
 	links:linkto(minilzo)
 	links:linkto(minizip)
@@ -49,6 +51,8 @@ function ObjLoading:project()
 				path.join(folder, "ObjLoading")
 			}
 		}
+
+		useSourceTemplating("ObjLoading")
 		
 		self:include(includes)
 		Crypto:include(includes)
