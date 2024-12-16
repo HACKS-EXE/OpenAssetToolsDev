@@ -58,7 +58,7 @@ class LinkerImpl final : public Linker
                         return false;
                     }
 
-                    ZoneDefinitionInputStream zoneDefinitionInputStream(*definitionStream.m_stream, definitionFileName, m_args.m_verbose);
+                    ZoneDefinitionInputStream zoneDefinitionInputStream(*definitionStream.m_stream, source, definitionFileName, m_args.m_verbose);
                     zoneDefinitionInputStream.SetPreviouslySetGame(zoneDefinition.m_game);
                     includeDefinition = zoneDefinitionInputStream.ReadDefinition();
                 }
@@ -139,7 +139,7 @@ class LinkerImpl final : public Linker
     {
         std::unique_ptr<ZoneDefinition> zoneDefinition;
         {
-            const auto definitionFileName = targetName + ".zone";
+            const auto definitionFileName = std::format("{}.zone", targetName);
             const auto definitionStream = sourceSearchPath->Open(definitionFileName);
             if (!definitionStream.IsOpen())
             {
@@ -147,7 +147,7 @@ class LinkerImpl final : public Linker
                 return nullptr;
             }
 
-            ZoneDefinitionInputStream zoneDefinitionInputStream(*definitionStream.m_stream, definitionFileName, m_args.m_verbose);
+            ZoneDefinitionInputStream zoneDefinitionInputStream(*definitionStream.m_stream, targetName, definitionFileName, m_args.m_verbose);
             zoneDefinition = zoneDefinitionInputStream.ReadDefinition();
         }
 

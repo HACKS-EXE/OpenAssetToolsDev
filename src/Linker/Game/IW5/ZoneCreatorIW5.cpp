@@ -2,6 +2,7 @@
 
 #include "Game/IW5/GameAssetPoolIW5.h"
 #include "Game/IW5/GameIW5.h"
+#include "IObjLoader.h"
 #include "ObjLoading.h"
 #include "Utils/StringUtils.h"
 
@@ -38,7 +39,7 @@ GameId ZoneCreator::GetGameId() const
 
 std::unique_ptr<Zone> ZoneCreator::CreateZoneForDefinition(ZoneCreationContext& context) const
 {
-    auto zone = std::make_unique<Zone>(context.m_definition->m_name, 0, &g_GameIW5);
+    auto zone = std::make_unique<Zone>(context.m_definition->m_name, 0, IGame::GetGameById(GameId::IW5));
     CreateZoneAssetPools(zone.get());
 
     for (const auto& assetEntry : context.m_definition->m_assets)
@@ -52,13 +53,14 @@ std::unique_ptr<Zone> ZoneCreator::CreateZoneForDefinition(ZoneCreationContext& 
     const auto assetLoadingContext = std::make_unique<AssetLoadingContext>(*zone, *context.m_asset_search_path, CreateGdtList(context));
     ApplyIgnoredAssets(context, *assetLoadingContext);
 
+    const auto* objLoader = IObjLoader::GetObjLoaderForGame(GameId::IW5);
     for (const auto& assetEntry : context.m_definition->m_assets)
     {
-        if (!ObjLoading::LoadAssetForZone(*assetLoadingContext, assetEntry.m_asset_type, assetEntry.m_asset_name))
+        if (!objLoader->LoadAssetForZone(*assetLoadingContext, assetEntry.m_asset_type, assetEntry.m_asset_name))
             return nullptr;
     }
 
-    ObjLoading::FinalizeAssetsForZone(*assetLoadingContext);
+    objLoader->FinalizeAssetsForZone(*assetLoadingContext);
 
     return zone;
 }

@@ -125,11 +125,6 @@ namespace T6
 #undef REGISTER_ASSET_LOADER
     }
 
-    bool ObjLoader::SupportsZone(const Zone& zone) const
-    {
-        return zone.m_game == &g_GameT6;
-    }
-
     bool ObjLoader::VerifySoundBankChecksum(const SoundBank& soundBank, const SndRuntimeAssetBank& sndRuntimeAssetBank)
     {
         SoundAssetBankChecksum checksum{};
@@ -293,7 +288,7 @@ namespace T6
             std::cout << std::format("Loading common ipaks for zone \"{}\"\n", zone.m_name);
 
         LoadIPakForZone(searchPath, "base", zone);
-        const auto languagePrefixes = g_GameT6.GetLanguagePrefixes();
+        const auto& languagePrefixes = IGame::GetGameById(GameId::T6)->GetLanguagePrefixes();
         for (const auto& languagePrefix : languagePrefixes)
             LoadIPakForZone(searchPath, std::format("{}base", languagePrefix.m_prefix), zone);
 

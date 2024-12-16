@@ -1,17 +1,20 @@
 #pragma once
 #include "Game/IGame.h"
 
-class GameIW5 : public IGame
+namespace IW5
 {
-    std::vector<Zone*> m_zones;
+    class Game final : public IGame
+    {
+    public:
+        [[nodiscard]] GameId GetId() const override;
+        [[nodiscard]] const std::string& GetFullName() const override;
+        [[nodiscard]] const std::string& GetShortName() const override;
+        void AddZone(Zone* zone) override;
+        void RemoveZone(Zone* zone) override;
+        [[nodiscard]] const std::vector<Zone*>& GetZones() const override;
+        [[nodiscard]] const std::vector<GameLanguagePrefix>& GetLanguagePrefixes() const override;
 
-public:
-    std::string GetFullName() override;
-    std::string GetShortName() override;
-    void AddZone(Zone* zone) override;
-    void RemoveZone(Zone* zone) override;
-    std::vector<Zone*> GetZones() override;
-    std::vector<GameLanguagePrefix> GetLanguagePrefixes() override;
-};
-
-extern GameIW5 g_GameIW5;
+    private:
+        std::vector<Zone*> m_zones;
+    };
+} // namespace IW5
