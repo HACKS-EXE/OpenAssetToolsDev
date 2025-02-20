@@ -1,3 +1,5 @@
+require("premake", ">=5.0.0-beta4")
+
 include "tools/scripts/folders.lua"
 include "tools/scripts/including.lua"
 include "tools/scripts/linking.lua"
@@ -56,9 +58,7 @@ workspace "OpenAssetTools"
         defines "NDEBUG"
         optimize "Full"
         symbols "Off"
-        flags {
-            "FatalWarnings"
-        }
+        fatalwarnings { "All" }
     filter {}
 
     defines {
@@ -126,6 +126,7 @@ include "src/ZoneLoading.lua"
 include "src/ZoneWriting.lua"
 include "src/ZoneCommon.lua"
 include "src/ObjCommon.lua"
+include "src/ObjCompiling.lua"
 include "src/ObjImage.lua"
 include "src/ObjLoading.lua"
 include "src/ObjWriting.lua"
@@ -143,6 +144,7 @@ group "Components"
     ZoneLoading:project()
     ZoneWriting:project()
     ObjCommon:project()
+    ObjCompiling:project()
     ObjImage:project()
     ObjLoading:project()
     ObjWriting:project()
@@ -168,7 +170,10 @@ group ""
 -- ========================
 -- Tests
 -- ========================
+include "test/Catch2Common.lua"
+include "test/ObjCommonTestUtils.lua"
 include "test/ObjCommonTests.lua"
+include "test/ObjCompilingTests.lua"
 include "test/ObjLoadingTests.lua"
 include "test/ParserTestUtils.lua"
 include "test/ParserTests.lua"
@@ -177,7 +182,10 @@ include "test/ZoneCommonTests.lua"
 
 -- Tests group: Unit test and other tests projects
 group "Tests"
+    Catch2Common:project()
+    ObjCommonTestUtils:project()
     ObjCommonTests:project()
+    ObjCompilingTests:project()
     ObjLoadingTests:project()
     ParserTestUtils:project()
     ParserTests:project()

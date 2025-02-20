@@ -4,20 +4,18 @@
 #include "GlobalAssetPool.h"
 #include "XAssetInfo.h"
 
-#include <cstring>
+#include <vector>
 
 template<typename T> class AssetPoolDynamic final : public AssetPool<T>
 {
     using AssetPool<T>::m_asset_lookup;
 
     std::vector<std::unique_ptr<XAssetInfo<T>>> m_assets;
-    asset_type_t m_type;
 
 public:
-    AssetPoolDynamic(const int priority, const asset_type_t type)
+    explicit AssetPoolDynamic(const zone_priority_t priority)
     {
         GlobalAssetPool<T>::LinkAssetPool(this, priority);
-        m_type = type;
     }
 
     AssetPoolDynamic(AssetPoolDynamic<T>&) = delete;
@@ -29,11 +27,6 @@ public:
     {
         GlobalAssetPool<T>::UnlinkAssetPool(this);
 
-        for (auto& entry : m_assets)
-        {
-            delete entry->Asset();
-        }
-
         m_assets.clear();
         m_asset_lookup.clear();
     }
@@ -41,10 +34,6 @@ public:
     XAssetInfo<T>* AddAsset(std::unique_ptr<XAssetInfo<T>> xAssetInfo) override
     {
         const auto normalizedName = XAssetInfo<T>::NormalizeAssetName(xAssetInfo->m_name);
-
-        T* newAsset = new T();
-        memcpy(newAsset, xAssetInfo->Asset(), sizeof(T));
-        xAssetInfo->m_ptr = newAsset;
 
         auto* pAssetInfo = xAssetInfo.get();
         m_asset_lookup[normalizedName] = pAssetInfo;
