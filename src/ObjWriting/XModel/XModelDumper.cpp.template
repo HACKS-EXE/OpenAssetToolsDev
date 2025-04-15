@@ -393,7 +393,8 @@ namespace
                     const auto& vertList = surface.vertList[vertListIndex];
                     const auto boneWeightOffset = weightOffset;
                     
-                    weightCollection.weights[weightOffset++] = XModelBoneWeight{.boneIndex = vertList.boneOffset / sizeof(DObjSkelMat), .weight = 1.0f};
+                    weightCollection.weights[weightOffset++] = 
+                        XModelBoneWeight{.boneIndex = static_cast<unsigned>(vertList.boneOffset / sizeof(DObjSkelMat)), .weight = 1.0f};
 
                     for (auto vertListVertexOffset = 0u; vertListVertexOffset < vertList.vertCount; vertListVertexOffset++)
                     {
@@ -410,7 +411,7 @@ namespace
                 for (auto vertIndex = 0; vertIndex < surface.vertInfo.vertCount[0]; vertIndex++)
                 {
                     const auto boneWeightOffset = weightOffset;
-                    const auto boneIndex0 = surface.vertInfo.vertsBlend[vertsBlendOffset + 0] / sizeof(DObjSkelMat);
+                    const unsigned boneIndex0 = surface.vertInfo.vertsBlend[vertsBlendOffset + 0] / sizeof(DObjSkelMat);
                     weightCollection.weights[weightOffset++] = XModelBoneWeight{.boneIndex = boneIndex0, .weight = 1.0f};
 
                     vertsBlendOffset += 1;
@@ -422,8 +423,8 @@ namespace
                 for (auto vertIndex = 0; vertIndex < surface.vertInfo.vertCount[1]; vertIndex++)
                 {
                     const auto boneWeightOffset = weightOffset;
-                    const auto boneIndex0 = surface.vertInfo.vertsBlend[vertsBlendOffset + 0] / sizeof(DObjSkelMat);
-                    const auto boneIndex1 = surface.vertInfo.vertsBlend[vertsBlendOffset + 1] / sizeof(DObjSkelMat);
+                    const unsigned boneIndex0 = surface.vertInfo.vertsBlend[vertsBlendOffset + 0] / sizeof(DObjSkelMat);
+                    const unsigned boneIndex1 = surface.vertInfo.vertsBlend[vertsBlendOffset + 1] / sizeof(DObjSkelMat);
                     const auto boneWeight1 = BoneWeight16(surface.vertInfo.vertsBlend[vertsBlendOffset + 2]);
                     const auto boneWeight0 = 1.0f - boneWeight1;
                     
@@ -439,10 +440,10 @@ namespace
                 for (auto vertIndex = 0; vertIndex < surface.vertInfo.vertCount[2]; vertIndex++)
                 {
                     const auto boneWeightOffset = weightOffset;
-                    const auto boneIndex0 = surface.vertInfo.vertsBlend[vertsBlendOffset + 0] / sizeof(DObjSkelMat);
-                    const auto boneIndex1 = surface.vertInfo.vertsBlend[vertsBlendOffset + 1] / sizeof(DObjSkelMat);
+                    const unsigned boneIndex0 = surface.vertInfo.vertsBlend[vertsBlendOffset + 0] / sizeof(DObjSkelMat);
+                    const unsigned boneIndex1 = surface.vertInfo.vertsBlend[vertsBlendOffset + 1] / sizeof(DObjSkelMat);
                     const auto boneWeight1 = BoneWeight16(surface.vertInfo.vertsBlend[vertsBlendOffset + 2]);
-                    const auto boneIndex2 = surface.vertInfo.vertsBlend[vertsBlendOffset + 3] / sizeof(DObjSkelMat);
+                    const unsigned boneIndex2 = surface.vertInfo.vertsBlend[vertsBlendOffset + 3] / sizeof(DObjSkelMat);
                     const auto boneWeight2 = BoneWeight16(surface.vertInfo.vertsBlend[vertsBlendOffset + 4]);
                     const auto boneWeight0 = 1.0f - boneWeight1 - boneWeight2;
                     
@@ -459,12 +460,12 @@ namespace
                 for (auto vertIndex = 0; vertIndex < surface.vertInfo.vertCount[3]; vertIndex++)
                 {
                     const auto boneWeightOffset = weightOffset;
-                    const auto boneIndex0 = surface.vertInfo.vertsBlend[vertsBlendOffset + 0] / sizeof(DObjSkelMat);
-                    const auto boneIndex1 = surface.vertInfo.vertsBlend[vertsBlendOffset + 1] / sizeof(DObjSkelMat);
+                    const unsigned boneIndex0 = surface.vertInfo.vertsBlend[vertsBlendOffset + 0] / sizeof(DObjSkelMat);
+                    const unsigned boneIndex1 = surface.vertInfo.vertsBlend[vertsBlendOffset + 1] / sizeof(DObjSkelMat);
                     const auto boneWeight1 = BoneWeight16(surface.vertInfo.vertsBlend[vertsBlendOffset + 2]);
-                    const auto boneIndex2 = surface.vertInfo.vertsBlend[vertsBlendOffset + 3] / sizeof(DObjSkelMat);
+                    const unsigned boneIndex2 = surface.vertInfo.vertsBlend[vertsBlendOffset + 3] / sizeof(DObjSkelMat);
                     const auto boneWeight2 = BoneWeight16(surface.vertInfo.vertsBlend[vertsBlendOffset + 4]);
-                    const auto boneIndex3 = surface.vertInfo.vertsBlend[vertsBlendOffset + 5] / sizeof(DObjSkelMat);
+                    const unsigned boneIndex3 = surface.vertInfo.vertsBlend[vertsBlendOffset + 5] / sizeof(DObjSkelMat);
                     const auto boneWeight3 = BoneWeight16(surface.vertInfo.vertsBlend[vertsBlendOffset + 6]);
                     const auto boneWeight0 = 1.0f - boneWeight1 - boneWeight2 - boneWeight3;
                     
@@ -569,7 +570,7 @@ namespace
     void DumpXModelExportLod(const XModelCommon& common, const AssetDumpingContext& context, const XAssetInfo<XModel>* asset, const unsigned lod)
     {
         const auto* model = asset->Asset();
-        const auto assetFile = context.OpenAssetFile(GetFileNameForLod(model->name, lod, ".XMODEL_EXPORT"));
+        const auto assetFile = context.OpenAssetFile(GetFileNameForLod(model->name, lod, ".xmodel_export"));
 
         if (!assetFile)
             return;
@@ -664,13 +665,13 @@ namespace
             switch (ObjWriting::Configuration.ModelOutputFormat)
             {
             case ObjWriting::Configuration_t::ModelOutputFormat_e::XMODEL_EXPORT:
-                return ".XMODEL_EXPORT";
+                return ".xmodel_export";
             case ObjWriting::Configuration_t::ModelOutputFormat_e::OBJ:
-                return ".OBJ";
+                return ".obj";
             case ObjWriting::Configuration_t::ModelOutputFormat_e::GLTF:
-                return ".GLTF";
+                return ".gltf";
             case ObjWriting::Configuration_t::ModelOutputFormat_e::GLB:
-                return ".GLB";
+                return ".glb";
             default:
                 assert(false);
                 return "";

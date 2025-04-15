@@ -4,6 +4,7 @@
 #include "AssetDumpers/AssetDumperGfxImage.h"
 #include "AssetDumpers/AssetDumperLeaderboardDef.h"
 #include "AssetDumpers/AssetDumperLocalizeEntry.h"
+#include "AssetDumpers/AssetDumperMapEnts.h"
 #include "AssetDumpers/AssetDumperMaterial.h"
 #include "AssetDumpers/AssetDumperPhysConstraints.h"
 #include "AssetDumpers/AssetDumperPhysPreset.h"
@@ -49,11 +50,11 @@ bool ObjWriter::DumpZone(AssetDumpingContext& context) const
     DUMP_ASSET_POOL(AssetDumperGfxImage, m_image, ASSET_TYPE_IMAGE)
     DUMP_ASSET_POOL(AssetDumperSndBank, m_sound_bank, ASSET_TYPE_SOUND)
     // DUMP_ASSET_POOL(AssetDumperSndPatch, m_sound_patch, ASSET_TYPE_SOUND_PATCH)
-    // DUMP_ASSET_POOL(AssetDumperClipMap, m_clip_map, ASSET_TYPE_CLIPMAP)
+    // DUMP_ASSET_POOL(AssetDumperClipMap, m_clip_map, ASSET_TYPE_CLIPMAP_PVS)
     // DUMP_ASSET_POOL(AssetDumperComWorld, m_com_world, ASSET_TYPE_COMWORLD)
     // DUMP_ASSET_POOL(AssetDumperGameWorldSp, m_game_world_sp, ASSET_TYPE_GAMEWORLD_SP)
     // DUMP_ASSET_POOL(AssetDumperGameWorldMp, m_game_world_mp, ASSET_TYPE_GAMEWORLD_MP)
-    // DUMP_ASSET_POOL(AssetDumperMapEnts, m_map_ents, ASSET_TYPE_MAP_ENTS)
+    DUMP_ASSET_POOL(AssetDumperMapEnts, m_map_ents, ASSET_TYPE_MAP_ENTS)
     // DUMP_ASSET_POOL(AssetDumperGfxWorld, m_gfx_world, ASSET_TYPE_GFXWORLD)
     // DUMP_ASSET_POOL(AssetDumperGfxLightDef, m_gfx_light_def, ASSET_TYPE_LIGHT_DEF)
     // DUMP_ASSET_POOL(AssetDumperFont, m_font, ASSET_TYPE_FONT)
